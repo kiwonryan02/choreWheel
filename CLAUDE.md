@@ -29,10 +29,21 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 ## Milestone status
 1. Scaffold, schema + seed, static wheels — done
 2. Realtime state, atomic `complete_chore` RPC, completion sheet, rotation animation — done
-   (`complete_chore` has no passcode check until M3; the `activity` feed/subscription arrives in M6)
-3. Identity picker + passcode gate — next
-4. PWA install + Web Push for completions
+   (the `activity` feed/subscription arrives in M6)
+3. Identity picker + passcode gate — done
+4. PWA install + Web Push for completions — next
 5. Anonymous bump with rate limit
-6. Activity feed, polish, Vercel deploy, README
+6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
 
-Throwaway scaffolding to remove in M2/M3 is marked with `TODO(M2)` / `TODO(M3)` comments.
+Remaining work is marked with `TODO(M#)` comments.
+
+## Passcode design (M3)
+- Every write RPC takes the household passcode and checks it server-side via `check_passcode()`.
+  The passcode is salted+hashed in `household_settings`; set it by hand with `select set_household_passcode('…')`
+  in the SQL editor. Never ask for it in chat or write it to a file.
+- Wrong guesses are throttled globally: 10 in 15 minutes locks all guesses (`passcode_failures`). Auth failures are
+  returned as a **status value, not an exception**, because an exception would roll back the failure record.
+  New write RPCs should follow the same pattern: `check_passcode()` first, return its status if not `'ok'`.
+- Device state lives in localStorage: `chorewheel.passcode`, `chorewheel.memberId` (see `src/lib/storage.ts`).
+- The 2-arg `complete_chore(uuid, uuid)` from the M2 migration was dropped in M3. The `TODO(M3)` comment left in
+  the M2 migration is stale (applied migrations aren't edited).

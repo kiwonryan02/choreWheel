@@ -16,6 +16,9 @@ export default function ChoreCard({ chore, meId, onMarkDone, onBump }: ChoreCard
   const current = chore.rotation.find((m) => m.id === chore.currentMemberId)
   if (!current) return null
 
+  // Only the person on top can complete a chore ("Mark done"); everyone else can
+  // only bump. TODO(v1 edge case, out of scope): someone else did the chore on
+  // that person's behalf and wants to clear it for them.
   const isMyTurn = meId === chore.currentMemberId
 
   return (

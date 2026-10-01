@@ -11,13 +11,16 @@ interface ChoreRow {
   since: Date
 }
 
+type CompleteStatus = 'done' | 'stale' | 'invalid' | 'locked' | 'not_set'
+
 interface CompleteChoreRow {
-  advanced: boolean
-  up_now: string
-  since: string
+  status: CompleteStatus
+  up_now: string | null
+  since: string | null
 }
 
-export type CompleteResult = 'done' | 'stale' | 'error'
+/** 'error' means the request itself failed (offline, server error). */
+export type CompleteResult = CompleteStatus | 'error'
 
 /**
  * Shared household state: members, both wheels, and their rotations.
@@ -113,7 +116,7 @@ export function useHousehold() {
   }, [refresh, applyServerState])
 
   const completeChore = useCallback(
-    async (choreId: string, memberId: string): Promise<CompleteResult> => {
+    async (choreId: string, memberId: string, passcode: string): Promise<CompleteResult> => {
       const order = rotations[choreId]
       // Optimistic: spin the wheel now, as long as this person really is on top.
       if (order?.length) {
@@ -127,6 +130,7 @@ export function useHousehold() {
       }
 
       const { data, error: rpcError } = await supabase.rpc('complete_chore', {
+        p_passcode: passcode,
         p_chore_id: choreId,
         p_expected_member_id: memberId,
       })
@@ -136,8 +140,12 @@ export function useHousehold() {
         return 'error'
       }
 
-      applyServerState(choreId, result.up_now, result.since)
-      return result.advanced ? 'done' : 'stale'
+      if (result.status === 'done' || result.status === 'stale') {
+        if (result.up_now && result.since) applyServerState(choreId, result.up_now, result.since)
+      } else {
+        await refresh() // rejected (passcode): undo the optimistic change
+      }
+      return result.status
     },
     [rotations, refresh, applyServerState],
   )
