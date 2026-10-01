@@ -5,12 +5,14 @@ export interface Member {
 }
 
 export interface Chore {
-  slug: 'dishes' | 'trash'
+  id: string
+  slug: string
   name: string
   emoji: string
+  checklist: string[]
   /** Members in this chore's rotation order. Each wheel has its own order. */
   rotation: Member[]
   currentMemberId: string
-  /** When currentMemberId became responsible (maps to chores.updated_at). */
+  /** When currentMemberId became responsible (chores.updated_at). */
   since: Date
 }
