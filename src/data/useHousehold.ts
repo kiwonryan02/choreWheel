@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CHORE_ORDER, CHORE_UI, FALLBACK_CHORE_UI } from '../config/chores'
 import { supabase } from '../lib/supabase'
 import type { Chore, Member } from '../types'
+import { announceCompletion } from './push'
+
+// Push is only wired up when the deployment has a VAPID public key.
+const VAPID_PUBLIC_KEY: string | undefined = import.meta.env.VITE_VAPID_PUBLIC_KEY
 
 interface ChoreRow {
   id: string
@@ -17,6 +21,7 @@ interface CompleteChoreRow {
   status: CompleteStatus
   up_now: string | null
   since: string | null
+  activity_id: string | null
 }
 
 /** 'error' means the request itself failed (offline, server error). */
@@ -142,6 +147,10 @@ export function useHousehold() {
 
       if (result.status === 'done' || result.status === 'stale') {
         if (result.up_now && result.since) applyServerState(choreId, result.up_now, result.since)
+        // Ping the other roommates. Not awaited: the chore is already done.
+        if (result.status === 'done' && result.activity_id && VAPID_PUBLIC_KEY) {
+          void announceCompletion(result.activity_id)
+        }
       } else {
         await refresh() // rejected (passcode): undo the optimistic change
       }

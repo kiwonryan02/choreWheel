@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ChoreCard from '../components/ChoreCard'
 import CompletionSheet from '../components/CompletionSheet'
+import Notifications from '../components/Notifications'
 import SettingsMenu from '../components/SettingsMenu'
 import { useHousehold } from '../data/useHousehold'
 import { readStored, STORAGE_KEYS, writeStored } from '../lib/storage'
@@ -81,7 +82,9 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    // snap-start on the wrapper gives the top of the page (header + notification
+    // banner) its own snap point, so the banner isn't scrolled away on load.
+    <div className="mx-auto max-w-md snap-start">
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between bg-slate-50/90 px-6 backdrop-blur dark:bg-slate-950/90">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold tracking-tight">LACK Chore Wheel</h1>
@@ -92,6 +95,8 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
         </div>
         <SettingsMenu me={me} onSwitchPerson={() => setSwitching(true)} onLock={onLock} />
       </header>
+
+      <Notifications memberId={me.id} passcode={passcode} onPasscodeRejected={onPasscodeRejected} />
 
       <main>
         {chores.map((chore) => (

@@ -11,8 +11,12 @@ notifications and deploy come in the later milestones. See [docs/SPEC.md](docs/S
 
 ```bash
 bun install
-bun run dev
+bun run dev    # http://localhost:5173
+bun test       # SQL (in-process Postgres), service worker, message text
 ```
+
+Copy `.env.example` to `.env` and fill it in. Push notifications need a one-time setup: see
+[docs/PUSH_SETUP.md](docs/PUSH_SETUP.md).
 
 ## Future ideas (not in v1)
 

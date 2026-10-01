@@ -35,11 +35,34 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 2. Realtime state, atomic `complete_chore` RPC, completion sheet, rotation animation — done
    (the `activity` feed/subscription arrives in M6)
 3. Identity picker + passcode gate — done
-4. PWA install + Web Push for completions — next
-5. Anonymous bump with rate limit
+4. PWA install + Web Push for completions — code done; live deploy of `notify` + a real-device test still pending
+   (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
+5. Anonymous bump with rate limit — next
 6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
 
 Remaining work is marked with `TODO(M#)` comments.
+
+## PWA and push design (M4)
+- `public/sw.js` handles push + notification clicks only and **caches nothing** (so there is never a stale build).
+  `public/manifest.webmanifest`: `name` "LACK Chore Wheel", `short_name` "LACK Chores" (home-screen labels truncate
+  around 11 characters). Icons are rendered from `public/icons/icon.svg`.
+- Notifications are **triggered by the app, not a database trigger**: after `complete_chore` returns `activity_id`, the app
+  calls the `notify` Edge Function, which claims the row via `activity.notified_at` so it notifies at most once. No pg_net
+  or webhook secret is needed. Trade-off: if the completer's app dies between the two calls, that one ping is lost.
+- The completer's devices are skipped. Subscriptions are filed per member and re-filed when someone switches person.
+- The bump notification (M5) should reuse the same pattern: claim a `bumps` row once, send only to the target member,
+  and never record or log anything that identifies the bumper.
+- Secrets: `supabase/push-secrets.local` (gitignored, holds the VAPID private key) is pushed to Supabase with
+  `supabase secrets set --env-file`. Never print it or paste it into chat.
+- The Edge Function itself is **not testable here**: there's no Deno, and the pane can't run service workers or push.
+  `tests/` covers the SQL, the message text, the service worker (against a fake scope) and the key decoding; the
+  `web-push` call under Deno is only proven by a real deploy.
+
+## Tests
+`bun test` runs everything in `tests/`. The SQL tests run the real migrations + seed in PGlite (in-process Postgres) with
+stub roles. It is not Supabase: it can't check Realtime, pg extensions, PostgREST, or true concurrent transactions
+(the double-completion race was checked once against the live project). The stub `service_role` bypasses RLS like the
+real one. **Every new migration needs matching tests.**
 
 ## Passcode design (M3)
 - Every write RPC takes the household passcode and checks it server-side via `check_passcode()`.
