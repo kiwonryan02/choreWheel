@@ -39,7 +39,7 @@ export default function Wheel({ members, currentId, emoji, label }: WheelProps) 
     <div
       role="img"
       aria-label={`${label} wheel, ${members[currentIndex]?.name} is up`}
-      className="relative mx-auto aspect-square w-[min(82vw,20rem)]"
+      className="relative mx-auto aspect-square w-[min(72vw,18rem)]"
       style={{ containerType: 'inline-size' }}
     >
       {/* Static track */}

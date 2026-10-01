@@ -38,7 +38,7 @@ export default function PasscodeGate({ notice, onUnlock }: PasscodeGateProps) {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col items-center justify-center px-6">
       <div className="text-5xl">🔒</div>
-      <h1 className="mt-4 text-2xl font-bold tracking-tight">Chore Wheel</h1>
+      <h1 className="mt-4 text-2xl font-bold tracking-tight">LACK Chore Wheel</h1>
       <p className="mt-1 text-center text-slate-500 dark:text-slate-400">
         Enter the household passcode. You'll only need to do this once on this device.
       </p>

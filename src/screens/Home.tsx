@@ -84,7 +84,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
     <div className="mx-auto max-w-md">
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between bg-slate-50/90 px-6 backdrop-blur dark:bg-slate-950/90">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold tracking-tight">Chore Wheel</h1>
+          <h1 className="text-lg font-bold tracking-tight">LACK Chore Wheel</h1>
           <span
             title={live ? 'Live updates on' : 'Reconnecting…'}
             className={`size-2 rounded-full ${live ? 'bg-emerald-500' : 'bg-amber-500'}`}

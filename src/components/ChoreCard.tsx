@@ -22,7 +22,7 @@ export default function ChoreCard({ chore, meId, onMarkDone, onBump }: ChoreCard
   const isMyTurn = meId === chore.currentMemberId
 
   return (
-    <section className="flex min-h-[calc(100svh-3.5rem)] scroll-mt-14 snap-start flex-col items-center justify-center gap-6 px-6 py-8">
+    <section className="flex min-h-[calc(100svh-3.5rem)] scroll-mt-14 snap-start flex-col items-center justify-center gap-5 px-6 py-6">
       <Wheel
         members={chore.rotation}
         currentId={chore.currentMemberId}
@@ -39,6 +39,19 @@ export default function ChoreCard({ chore, meId, onMarkDone, onBump }: ChoreCard
           Since {timeAgo(chore.since, now)}
         </p>
       </div>
+
+      {chore.checklist.length > 0 && (
+        <div className="w-full max-w-xs rounded-2xl bg-white px-4 py-3 text-left ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+          <h2 className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+            {chore.name} is done when
+          </h2>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-snug">
+            {chore.checklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {isMyTurn ? (
         <button

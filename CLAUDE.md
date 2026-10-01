@@ -12,6 +12,10 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 - `bun run lint` — oxlint
 
 ## Decisions that differ from or refine the spec
+- **The app's display name is "LACK Chore Wheel"** (header, passcode screen, page title). Use it for the PWA manifest
+  `name` in M4 and for push notification titles.
+- **The chore checklist is shown on each wheel's card**, always visible, as a plain numbered list. The completion sheet
+  is only a confirm ("Mark dishes done? The wheel will move on to X"). The spec had the checklist in the sheet with tickable boxes.
 - **Rotation order is per chore**, not shared. Both wheels start on Kiwon, but Dishes goes
   Kiwon → Lucas → Anish → Carter and Trash goes Kiwon → Carter → Anish → Lucas. This is why the
   schema has a `chore_rotation(chore_id, member_id, position)` table. `members.position` is display order only.

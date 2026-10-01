@@ -11,15 +11,16 @@ interface CompletionSheetProps {
 const EXIT_MS = 200
 
 /**
- * Bottom sheet showing what "done" means for a chore. The checkboxes are only
- * a reference for the person doing the chore: nothing is required, validated
- * or stored, and Confirm is always enabled.
+ * Bottom sheet that confirms marking a chore done. What "done" means is shown
+ * on the chore card itself, so this is just a guard against accidental taps.
  */
 export default function CompletionSheet({ chore, color, onConfirm, onClose }: CompletionSheetProps) {
-  const [checked, setChecked] = useState<boolean[]>(() => chore.checklist.map(() => false))
   const [shown, setShown] = useState(false)
   const closing = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const currentIndex = chore.rotation.findIndex((m) => m.id === chore.currentMemberId)
+  const next = chore.rotation[(currentIndex + 1) % chore.rotation.length]
 
   // Slide in on mount; clear any pending exit timer on unmount.
   useEffect(() => {
@@ -66,28 +67,17 @@ export default function CompletionSheet({ chore, color, onConfirm, onClose }: Co
       >
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-700" />
         <h2 id="sheet-title" className="text-xl font-semibold">
-          {chore.emoji} {chore.name}: what "done" means
+          {chore.emoji} Mark {chore.name.toLowerCase()} done?
         </h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          A quick reference. Tick what you like, nothing is required.
-        </p>
-
-        <ul className="mt-4 space-y-3">
-          {chore.checklist.map((item, i) => (
-            <li key={item}>
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={checked[i]}
-                  onChange={() => setChecked((all) => all.map((v, j) => (j === i ? !v : v)))}
-                  className="mt-0.5 size-6 shrink-0"
-                  style={{ accentColor: color }}
-                />
-                <span className="text-base leading-snug">{item}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
+        {next && (
+          <p className="mt-1 text-slate-500 dark:text-slate-400">
+            The wheel will move on to{' '}
+            <span className="font-semibold" style={{ color: next.color }}>
+              {next.name}
+            </span>
+            .
+          </p>
+        )}
 
         <div className="mt-6 flex gap-3">
           <button
