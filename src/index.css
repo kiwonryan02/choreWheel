@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+
+html {
+  color-scheme: light dark;
+  scroll-snap-type: y proximity;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
