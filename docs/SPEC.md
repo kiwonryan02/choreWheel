@@ -92,6 +92,9 @@ Milestones 1–5 are built and working on iOS. Remaining work: the shared todo l
 - RLS on; all writes go through RPCs/Edge Functions that validate the household passcode.
 
 ## Non-goals (v1)
+> **Changed by the owner after this was written:** one scheduled reminder now exists (a nudge after a chore sits with the
+> same person for 4 days), and activity entries can be reacted to. See CLAUDE.md. The rest of this list still stands.
+
 - Accounts/login, multiple households, skip/swap/vacation mode, chore reminders on a schedule, stats/leaderboards. Mention as future ideas in the README only.
 
 ## Milestones

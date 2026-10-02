@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildBumpMessage, buildCompletedMessage, buildTodoDoneMessage } from '../supabase/functions/notify/message.ts'
+import { buildBumpMessage, buildCompletedMessage, buildReminderMessage, buildTodoDoneMessage } from '../supabase/functions/notify/message.ts'
 
 describe('buildBumpMessage', () => {
   test('matches the wording in the spec', () => {
@@ -67,5 +67,28 @@ describe('buildTodoDoneMessage', () => {
     const b = buildTodoDoneMessage({ todoId: 'two', todoText: 'b', completerName: 'A' })
     expect(a.tag).toBe('todo-one')
     expect(a.tag).not.toBe(b.tag)
+  })
+})
+
+describe('buildReminderMessage', () => {
+  test('agrees with the chore: "the trash has", "the dishes have"', () => {
+    expect(buildReminderMessage({ choreSlug: 'trash', choreName: 'Trash', waitingDays: 4 }).body).toBe(
+      'Reminder: the trash has been waiting on you for 4 days.',
+    )
+    expect(buildReminderMessage({ choreSlug: 'dishes', choreName: 'Dishes', waitingDays: 5 }).body).toBe(
+      'Reminder: the dishes have been waiting on you for 5 days.',
+    )
+  })
+
+  test('uses its own tag so it never replaces a "done" or nudge notification', () => {
+    const reminder = buildReminderMessage({ choreSlug: 'trash', choreName: 'Trash', waitingDays: 4 })
+    expect(reminder.tag).toBe('reminder-trash')
+    expect(reminder.tag).not.toBe(buildBumpMessage({ choreSlug: 'trash', choreName: 'Trash' }).tag)
+    expect(reminder.tag).not.toBe(buildCompletedMessage({ choreSlug: 'trash', choreName: 'Trash', completerName: 'A', nextName: 'B' }).tag)
+  })
+
+  test('is built from the chore alone: it names no one', () => {
+    const msg = JSON.stringify(buildReminderMessage({ choreSlug: 'dishes', choreName: 'Dishes', waitingDays: 4 }))
+    for (const name of ['Kiwon', 'Lucas', 'Anish', 'Carter']) expect(msg).not.toContain(name)
   })
 })

@@ -104,6 +104,25 @@ Remaining work is marked with `TODO(M#)` comments.
 - The feed reloads on any Realtime activity/reaction insert or delete; our own reactions are applied optimistically first.
 - No notifications for reactions.
 
+## Automatic 4-day reminder
+- If a chore has been on the same person's turn for **4 days**, they get **one** push for that turn ("Reminder: the trash has been
+  waiting on you for 4 days."). The spec listed scheduled reminders as a v1 non-goal; the owner later asked for this one.
+- **How it runs:** `pg_cron` calls `send_stale_chore_reminders()` every 30 minutes (scheduled by the migration, guarded so it
+  no-ops where pg_cron doesn't exist). It records a row in `chore_reminders` for each chore whose turn is 4+ days old
+  (`unique (chore_id, stint_started_at)` = at most one per turn, ever) and POSTs `{type:'reminder', reminder_id}` to the `notify`
+  function via `pg_net`. Unclaimed reminders are re-requested on later runs for up to a day (so a failed request is retried).
+  `notify` calls `claim_reminder_notification` (service_role only), which claims it once and returns the recipient **only if they are
+  still on the chore for the same turn**; if they did it first, nothing is sent.
+- **Quiet hours:** only 09:00-21:00 in the household timezone; one that comes due overnight goes out in the morning.
+- **One-time setup, by hand, in the SQL editor** (stored in `app_settings`; until it's run nothing is sent and nothing is recorded):
+  `select configure_reminders('https://<project-ref>.supabase.co/functions/v1/notify', 'America/New_York');`
+  Re-run it to change the timezone. The 4 days and the 9-21 window are constants in the SQL function.
+- **Test it live:** in the SQL editor, `update chores set updated_at = now() - interval '5 days' where slug = 'trash';` then
+  `select send_stale_chore_reminders();` (it returns how many requests it made; only daytime counts, or pass a daytime
+  `p_now`). Put things back with `supabase/dev-reset.sql`. Cron history: `select * from cron.job_run_details order by start_time desc limit 5;`
+- The pg_cron/pg_net pieces can't run in the test database, so the tests stub `net.http_post` and drive the function with an explicit
+  `p_now`. The real scheduler and HTTP call are only proven on the live project.
+
 ## Bump design (M5)
 - `bump_chore(passcode, chore_id, expected_member_id)` takes **no sender**, and `bumps` has **no sender column**.
   `tests/sql/bump.test.ts` pins the exact column list and function arguments, so adding an identifying field fails a test.

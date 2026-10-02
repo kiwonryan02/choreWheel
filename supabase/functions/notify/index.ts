@@ -1,9 +1,11 @@
 // notify: sends Web Push notifications.
 //
-// Three request types, each called by the app right after the matching RPC:
+// Four request types. Three are called by the app right after the matching RPC:
 //   { type: 'chore_completed', activity_id }  after complete_chore  -> everyone but the completer
 //   { type: 'todo_done',       todo_id }      after set_todo_done   -> everyone but whoever checked it off
 //   { type: 'bump',            bump_id }      after bump_chore      -> only the person who was bumped
+// and one comes from the database's scheduler (pg_cron via pg_net), not from the app:
+//   { type: 'reminder',        reminder_id }  chore sat 4 days     -> only the person still on the chore
 //
 // Each call CLAIMS its row (sets notified_at, only if still null and recent; the todo and bump
 // claims live in SQL: claim_todo_notification, claim_bump_notification),
@@ -26,6 +28,7 @@ import webpush from 'npm:web-push@3.6.7'
 import {
   buildBumpMessage,
   buildCompletedMessage,
+  buildReminderMessage,
   buildTodoDoneMessage,
   type PushMessage,
 } from './message.ts'
@@ -67,7 +70,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
-  let body: { type?: unknown; activity_id?: unknown; bump_id?: unknown; todo_id?: unknown }
+  let body: { type?: unknown; activity_id?: unknown; bump_id?: unknown; todo_id?: unknown; reminder_id?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -83,6 +86,9 @@ Deno.serve(async (req) => {
     }
     if (body.type === 'bump' && isId(body.bump_id)) {
       return await bumped(body.bump_id)
+    }
+    if (body.type === 'reminder' && isId(body.reminder_id)) {
+      return await reminded(body.reminder_id)
     }
   } catch (err) {
     console.error('notify failed', err)
@@ -165,6 +171,29 @@ async function todoDone(todoId: string): Promise<Response> {
     await sendAll(
       subscriptions,
       buildTodoDoneMessage({ todoId, todoText: claim.todo_text, completerName: completer.name }),
+    ),
+  )
+}
+
+async function reminded(reminderId: string): Promise<Response> {
+  // The database claims the reminder once, and names a recipient only if they are STILL on the
+  // chore for the same turn. If they did it (or the wheel moved) first, nobody is pinged.
+  const { data, error: claimError } = await db.rpc('claim_reminder_notification', { p_reminder_id: reminderId })
+  if (claimError) throw claimError
+  const claim = (data as { chore_slug: string; chore_name: string; recipient_id: string; waiting_days: number }[] | null)?.[0]
+  if (!claim) return json({ sent: 0, reason: 'already sent, unknown, or the chore moved on' })
+
+  // Only that one person's devices.
+  const { data: subscriptions, error: subsError } = await db
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .eq('member_id', claim.recipient_id)
+  if (subsError) throw subsError
+
+  return json(
+    await sendAll(
+      subscriptions,
+      buildReminderMessage({ choreSlug: claim.chore_slug, choreName: claim.chore_name, waitingDays: claim.waiting_days }),
     ),
   )
 }

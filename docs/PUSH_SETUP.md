@@ -15,7 +15,7 @@ How it works, briefly:
    callable with the public key.
 
 The same function also sends "Alex checked off 'Buy paper towels'" to everyone but Alex when a todo is checked off
-(migration `20261001000700_todo_notifications.sql`), and the anonymous-bump nudge ("Friendly nudge: the trash is waiting on you.") to just the
+(migration `20261001000700_todo_notifications.sql`), the automatic 4-day chore reminder (sent by the database's scheduler; see CLAUDE.md), and the anonymous-bump nudge ("Friendly nudge: the trash is waiting on you.") to just the
 person who was bumped. Milestone 5's migration (`20261001000400_bump.sql`) adds what it needs; after running it,
 redeploy `notify` (step 3's deploy command) so the function knows about bumps.
 

@@ -37,6 +37,24 @@ export function buildBumpMessage({ choreSlug, choreName }: BumpInput): PushMessa
   }
 }
 
+export interface ReminderInput {
+  choreSlug: string
+  choreName: string
+  waitingDays: number
+}
+
+/** "Reminder: the trash has been waiting on you for 4 days." */
+export function buildReminderMessage({ choreSlug, choreName, waitingDays }: ReminderInput): PushMessage {
+  const lower = choreName.toLowerCase()
+  const have = lower.endsWith('s') ? 'have' : 'has' // "the dishes have", "the trash has"
+  return {
+    title: choreName,
+    body: `Reminder: the ${lower} ${have} been waiting on you for ${waitingDays} ${waitingDays === 1 ? 'day' : 'days'}.`,
+    tag: `reminder-${choreSlug}`,
+    url: '/',
+  }
+}
+
 export interface TodoDoneInput {
   todoId: string
   todoText: string

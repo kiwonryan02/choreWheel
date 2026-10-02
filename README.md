@@ -8,7 +8,9 @@ phones.
   to the next person. Everyone else can send an **anonymous nudge** ("bump").
 - **Todos:** a shared list. Anyone adds and checks off; only the creator deletes (while it's open).
 - **Activity:** one feed of everything completed, chores and todos together. Nudges never appear in it.
-- **Notifications:** a ping when a chore or todo is finished, and a private nudge ping to whoever is on a chore.
+- **Reactions:** react to anything in the feed with 👍 ❤️ 🐐 🙏.
+- **Notifications:** a ping when a chore or todo is finished, a private nudge ping to whoever is on a chore, and one automatic
+  reminder if a chore has sat with the same person for 4 days.
 - **No accounts.** Access is an unguessable URL plus a household passcode; each device picks who it is.
 
 The full spec is in [docs/SPEC.md](docs/SPEC.md) (with a note at the top on where we deliberately differ from it).
@@ -60,6 +62,8 @@ then `supabase/seed.sql`:
 | `…0500_activity_feed.sql` | The generalized activity table (chores and todos) |
 | `…0600_todos.sql` | The todo list and its functions |
 | `…0700_todo_notifications.sql` | Once-only todo notifications |
+| `…0800_reactions.sql` | Reactions on feed entries |
+| `…0900_chore_reminders.sql` | The 4-day reminder (scheduled with pg_cron, sent with pg_net) |
 
 Some of these contain `drop`/`rename`/`update`; the editor will ask you to confirm. Migrations are applied by hand;
 the CLI has no SQL command and database commands need your DB password. Never edit a migration you've already run: add a
@@ -74,6 +78,19 @@ select set_household_passcode('123456');
 ```
 
 Run it again any time to change it. Devices with the old one are asked for the new one on their next action.
+
+### 5b. Turn on the 4-day reminders
+
+The last migration schedules the reminder job. Tell it where your notification function lives and what timezone to use for
+quiet hours (reminders only go out 9am-9pm):
+
+```sql
+select configure_reminders('https://YOUR-PROJECT-REF.supabase.co/functions/v1/notify', 'America/New_York');
+```
+
+Until you run this, no reminders are recorded or sent. If the migration complained about `pg_cron` or `pg_net`, enable them in
+the dashboard under Database, then Extensions, and run the migration again. (The notification function from step 7 has to
+be deployed for reminders to actually arrive.)
 
 ### 6. Configure the app
 
@@ -157,7 +174,8 @@ in the SQL editor after testing.
 - **Nudges are anonymous by construction.** The table and function have no sender field at all, the limit is one nudge per
   chore per 12 hours for everyone, and tests fail if an identifying column or argument is ever added. (Platform request
   logs still see IP addresses, like any hosted API.)
-- The `notify` function is callable with the public key by design; it can only announce a real, recent event, once.
+- The `notify` function is callable with the public key by design; it can only announce a real, recent event, once. The reminder
+  request comes from the database's scheduler rather than the app, and is also claimed once.
 
 ## Testing
 
@@ -196,5 +214,5 @@ docs/           the spec and push setup
 
 ## Future ideas (not in v1)
 
-Accounts/login, multiple households, skip/swap/vacation mode, scheduled chore reminders, stats and leaderboards,
-editing todos, and letting someone mark a chore done on another person's behalf (there's a marked TODO for that edge case).
+Accounts/login, multiple households, skip/swap/vacation mode, configurable or repeating reminders, stats and leaderboards,
+editing todos, notifications for reactions, and letting someone mark a chore done on another person's behalf (there's a marked TODO for that edge case).
