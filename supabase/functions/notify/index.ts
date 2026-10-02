@@ -129,33 +129,23 @@ async function choreCompleted(activityId: string): Promise<Response> {
 }
 
 async function bumped(bumpId: string): Promise<Response> {
-  const { data: bump, error: claimError } = await db
-    .from('bumps')
-    .update({ notified_at: new Date().toISOString() })
-    .eq('id', bumpId)
-    .is('notified_at', null)
-    .gte('created_at', claimCutoff())
-    .select('chore_id, target_member_id')
-    .maybeSingle()
+  // The database decides who may be pinged (see claim_bump_notification): the
+  // bump is claimed exactly once, and the recipient is returned only if they
+  // are STILL the person on the chore. If the wheel moved on, nobody is pinged.
+  const { data, error: claimError } = await db.rpc('claim_bump_notification', { p_bump_id: bumpId })
   if (claimError) throw claimError
-  if (!bump) return json({ sent: 0, reason: 'already announced, too old, or unknown' })
+  const claim = (data as { chore_slug: string; chore_name: string; recipient_id: string }[] | null)?.[0]
+  if (!claim) return json({ sent: 0, reason: 'already announced, too old, unknown, or the chore moved on' })
 
-  const { data: chore, error: choreError } = await db
-    .from('chores')
-    .select('slug, name')
-    .eq('id', bump.chore_id)
-    .single()
-  if (choreError) throw choreError
-
-  // Only the person who was bumped.
+  // Only that one person's devices.
   const { data: subscriptions, error: subsError } = await db
     .from('push_subscriptions')
     .select('id, endpoint, p256dh, auth')
-    .eq('member_id', bump.target_member_id)
+    .eq('member_id', claim.recipient_id)
   if (subsError) throw subsError
 
   return json(
-    await sendAll(subscriptions, buildBumpMessage({ choreSlug: chore.slug, choreName: chore.name })),
+    await sendAll(subscriptions, buildBumpMessage({ choreSlug: claim.chore_slug, choreName: claim.chore_name })),
   )
 }
 

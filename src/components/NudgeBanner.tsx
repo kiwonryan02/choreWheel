@@ -5,13 +5,14 @@ interface NudgeBannerProps {
 
 /** Shown to the person on top after someone bumped them. It never says who. */
 export default function NudgeBanner({ choreName, onDismiss }: NudgeBannerProps) {
+  const verb = choreName.toLowerCase().endsWith('s') ? 'are' : 'is' // "the dishes are", "the trash is"
   return (
     <div
       role="status"
       className="mx-6 mt-1 flex items-start justify-between gap-3 rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100"
     >
       <p>
-        <span className="font-semibold">Friendly nudge:</span> the {choreName.toLowerCase()} is waiting on
+        <span className="font-semibold">Friendly nudge:</span> the {choreName.toLowerCase()} {verb} waiting on
         you.
       </p>
       <button

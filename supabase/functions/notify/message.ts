@@ -28,9 +28,10 @@ export interface BumpInput {
  * the data it is built from) can say who sent it.
  */
 export function buildBumpMessage({ choreSlug, choreName }: BumpInput): PushMessage {
+  const verb = choreName.toLowerCase().endsWith('s') ? 'are' : 'is' // "the dishes are", "the trash is"
   return {
     title: choreName,
-    body: `Friendly nudge: the ${choreName.toLowerCase()} is waiting on you.`,
+    body: `Friendly nudge: the ${choreName.toLowerCase()} ${verb} waiting on you.`,
     tag: `bump-${choreSlug}`,
     url: '/',
   }

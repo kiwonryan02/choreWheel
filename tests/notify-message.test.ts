@@ -9,6 +9,12 @@ describe('buildBumpMessage', () => {
     expect(msg.tag).toBe('bump-trash')
   })
 
+  test('agrees with plural chore names: "the dishes are waiting"', () => {
+    expect(buildBumpMessage({ choreSlug: 'dishes', choreName: 'Dishes' }).body).toBe(
+      'Friendly nudge: the dishes are waiting on you.',
+    )
+  })
+
   test('is built from the chore alone, so it cannot name a sender', () => {
     // The function signature takes no person at all; this guards the output too.
     const msg = JSON.stringify(buildBumpMessage({ choreSlug: 'dishes', choreName: 'Dishes' }))

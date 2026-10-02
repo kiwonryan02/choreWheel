@@ -7,8 +7,9 @@
 -- Same once-only claim the notify function uses for completions.
 alter table bumps add column notified_at timestamptz;
 
--- The notify function (service_role) claims a bump, so it needs these.
-grant select, update on bumps to service_role;
+-- (The notify function never touches bumps directly: it goes through
+-- claim_bump_notification below, which is the one place that decides who is
+-- allowed to be notified.)
 
 -- ---------------------------------------------------------------------------
 -- bump_chore(passcode, chore_id, expected_member_id)
@@ -17,7 +18,7 @@ grant select, update on bumps to service_role;
 -- expected_member_id is the person the caller sees on top; if the wheel has
 -- moved on, the answer is 'stale' and nothing is recorded. The rate limit is
 -- global per chore (never per person, which would identify bumpers): at most
--- one bump per chore per 6 hours. Locking the chore row makes two simultaneous
+-- one bump per chore per 12 hours. Locking the chore row makes two simultaneous
 -- bumps take turns, so the limit can't be raced.
 -- ---------------------------------------------------------------------------
 
@@ -55,7 +56,7 @@ begin
   if exists (
     select 1 from bumps b
      where b.chore_id = p_chore_id
-       and b.created_at > now() - interval '6 hours'
+       and b.created_at > now() - interval '12 hours'
   ) then
     return query select 'rate_limited', null::uuid;
     return;
@@ -75,7 +76,7 @@ grant execute on function bump_chore(text, uuid, uuid) to anon, authenticated;
 -- ---------------------------------------------------------------------------
 -- get_nudges(passcode, member_id): powers the in-app "you were nudged" banner.
 -- Returns the chores this member is on top of that were bumped during their
--- current stint (and within the last 6 hours). It says that a nudge happened,
+-- current stint (and within the last 12 hours). It says that a nudge happened,
 -- never by whom: the data doesn't exist.
 -- ---------------------------------------------------------------------------
 
@@ -100,10 +101,54 @@ begin
       join bumps b on b.chore_id = c.id and b.target_member_id = p_member_id
      where c.current_member_id = p_member_id
        and b.created_at >= c.updated_at
-       and b.created_at > now() - interval '6 hours'
+       and b.created_at > now() - interval '12 hours'
      group by c.id;
 end;
 $$;
 
 revoke all on function get_nudges(text, uuid) from public;
 grant execute on function get_nudges(text, uuid) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- claim_bump_notification(bump_id): called ONLY by the notify Edge Function
+-- (service_role). Decides who may be pinged for a bump, in one atomic step:
+--
+--   * the bump must be unclaimed and under 2 minutes old (claimed exactly once),
+--   * and its target must STILL be the person on that chore. If the wheel moved
+--     on since the bump, nobody is notified: a nudge is never delivered to
+--     someone who is no longer responsible for the chore.
+--
+-- Returns the one recipient (and the chore's name for the message), or no rows.
+-- ---------------------------------------------------------------------------
+
+create or replace function claim_bump_notification(p_bump_id uuid)
+returns table (chore_slug text, chore_name text, recipient_id uuid)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_chore  uuid;
+  v_target uuid;
+begin
+  update bumps
+     set notified_at = now()
+   where id = p_bump_id
+     and notified_at is null
+     and created_at >= now() - interval '2 minutes'
+  returning bumps.chore_id, bumps.target_member_id into v_chore, v_target;
+
+  if not found then
+    return;
+  end if;
+
+  return query
+    select c.slug, c.name, v_target
+      from chores c
+     where c.id = v_chore
+       and c.current_member_id = v_target;
+end;
+$$;
+
+revoke all on function claim_bump_notification(uuid) from public, anon, authenticated;
+grant execute on function claim_bump_notification(uuid) to service_role;

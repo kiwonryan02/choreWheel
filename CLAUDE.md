@@ -69,11 +69,15 @@ Remaining work is marked with `TODO(M#)` comments.
   `tests/sql/bump.test.ts` pins the exact column list and function arguments, so adding an identifying field fails a test.
   Platform request logs (Supabase/Vercel) still see IPs like any hosted API; the guarantee is that **no row, API response,
   or notification** can reveal the bumper.
-- Rate limit, per the spec: at most 1 bump per **chore** per 6 hours, global, **regardless of who is targeted**. So a
-  bump aimed at the previous holder also blocks bumping the new holder until the 6 hours pass. If that proves annoying,
-  the fix is to count only bumps at the current holder within their current stint (as `get_nudges` already does).
+- Rate limit: at most 1 bump per **chore** per **12 hours** (the spec said 6; the owner chose 12), global, **regardless of
+  who is bumping or who is targeted**. The owner considered a per-person limit and rejected it: enforcing one would
+  mean recording the bumper, which breaks anonymity (and a bumper who had hit three people would be identifiable by
+  elimination). A bump aimed at the previous holder also blocks bumping the new holder until the 12 hours pass.
+- **Who gets pinged is decided in the database**: `claim_bump_notification(bump_id)` (service_role only) claims a bump once and
+  returns the recipient only if they are *still* on the chore. If the wheel moved on first, nobody is notified. The `notify`
+  function only sends to that one person's subscriptions.
 - The recipient's in-app "Friendly nudge" banner comes from `get_nudges` (passcode-checked): bumps during their current
-  stint, within 6 hours. Dismissals are per device in localStorage (`chorewheel.nudgeSeen.<chore id>`). `bumps` itself
+  stint, within 12 hours. Dismissals are per device in localStorage (`chorewheel.nudgeSeen.<chore id>`). `bumps` itself
   stays unreadable by the public key and isn't on Realtime, so the app polls (load, foreground, wheel change, every 60s).
   On an `invalid` passcode the polling stops and the passcode is cleared, so it can't burn through the lockout.
 - Secrets: `supabase/push-secrets.local` (gitignored, holds the VAPID private key) is pushed to Supabase with

@@ -13,7 +13,7 @@ beforeAll(async () => {
 const bump = (pass: string | null, chore: string, target: string) =>
   t.as('anon', () => t.one('select * from bump_chore($1, $2, $3)', [pass, chore, t.members[target]]))
 const bumpRows = () => t.rows('select * from bumps order by created_at')
-// Pretend time has passed: the 6 hour window is measured from created_at.
+// Pretend time has passed: the 12 hour window is measured from created_at.
 const age = (interval: string) => t.db.exec(`update bumps set created_at = created_at - interval '${interval}'`)
 
 describe('anonymity', () => {
@@ -50,7 +50,7 @@ describe('bump_chore', () => {
     expect(rows[0].notified_at).toBeNull()
   })
 
-  test('a second bump on the same chore inside 6 hours is rate limited and records nothing', async () => {
+  test('a second bump on the same chore inside 12 hours is rate limited and records nothing', async () => {
     const r = await bump(PASSCODE, dishes, 'Kiwon')
     expect(r.status).toBe('rate_limited')
     expect(r.bump_id).toBeNull()
@@ -61,11 +61,20 @@ describe('bump_chore', () => {
     expect((await bump(PASSCODE, trash, 'Kiwon')).status).toBe('sent')
   })
 
-  test('still limited at 5h59m, allowed again after 6 hours', async () => {
-    await age('5 hours 59 minutes')
+  test('still limited at 11h59m, allowed again after 12 hours', async () => {
+    await age('11 hours 59 minutes')
     expect((await bump(PASSCODE, dishes, 'Kiwon')).status).toBe('rate_limited')
     await age('2 minutes')
     expect((await bump(PASSCODE, dishes, 'Kiwon')).status).toBe('sent')
+  })
+
+  test('the limit is global: it does not depend on who is asking', async () => {
+    // There is no sender to tell callers apart, so a second caller is limited too.
+    await t.db.exec('delete from bumps')
+    expect((await bump(PASSCODE, dishes, 'Kiwon')).status).toBe('sent')
+    expect((await bump(PASSCODE, dishes, 'Kiwon')).status).toBe('rate_limited')
+    expect((await bump(PASSCODE, dishes, 'Kiwon')).status).toBe('rate_limited')
+    expect(await bumpRows()).toHaveLength(1)
   })
 
   test('a bump aimed at someone who is not on top is stale and records nothing', async () => {
@@ -76,7 +85,7 @@ describe('bump_chore', () => {
   })
 
   test('a wrong passcode is refused and records nothing', async () => {
-    await age('7 hours') // so only the passcode could be the reason
+    await age('13 hours') // so only the passcode could be the reason
     const before = (await bumpRows()).length
     expect((await bump('0000', dishes, 'Kiwon')).status).toBe('invalid')
     expect((await bumpRows()).length).toBe(before)
@@ -103,10 +112,10 @@ describe('get_nudges (the in-app "you were nudged" banner)', () => {
     expect(await nudges('Lucas')).toEqual([]) // Lucas was never bumped
   })
 
-  test('does not report nudges older than 6 hours', async () => {
+  test('does not report nudges older than 12 hours', async () => {
     await t.db.exec('delete from bumps')
     await bump(PASSCODE, trash, 'Kiwon')
-    await age('7 hours')
+    await age('13 hours')
     expect(await nudges('Kiwon')).toEqual([])
   })
 
@@ -116,23 +125,45 @@ describe('get_nudges (the in-app "you were nudged" banner)', () => {
   })
 })
 
-describe('announcing a bump (what the notify function does)', () => {
-  test('the claim succeeds once, and only for recent bumps', async () => {
+describe('who gets the bump notification (claim_bump_notification, service_role only)', () => {
+  const claim = (bumpId: string) =>
+    t.as('service_role', () => t.rows('select * from claim_bump_notification($1)', [bumpId]))
+
+  async function freshBump(chore: string, target: string) {
     await t.db.exec('delete from bumps')
-    const chore = await t.choreId('trash')
-    const sent = await bump(PASSCODE, chore, 'Kiwon')
-    const claim = () =>
-      t.as('service_role', () =>
-        t.rows(
-          `update bumps set notified_at = now()
-            where id = $1 and notified_at is null and created_at >= now() - interval '2 minutes'
-            returning chore_id, target_member_id`,
-          [sent.bump_id],
-        ),
-      )
-    const first = await claim()
-    expect(first).toHaveLength(1)
-    expect(first[0].target_member_id).toBe(t.members.Kiwon)
-    expect(await claim()).toHaveLength(0)
+    return bump(PASSCODE, chore, target)
+  }
+
+  test('claims once and names exactly one recipient: the person on the chore', async () => {
+    const sent = await freshBump(trash, 'Kiwon')
+    const first = await claim(sent.bump_id)
+    expect(first).toEqual([{ chore_slug: 'trash', chore_name: 'Trash', recipient_id: t.members.Kiwon }])
+    expect(await claim(sent.bump_id)).toEqual([]) // a repeat call claims nothing
+  })
+
+  test('sends nobody if the wheel moved on before the notification went out', async () => {
+    const sent = await freshBump(dishes, 'Kiwon')
+    await t.as('anon', () => t.complete(PASSCODE, dishes, 'Kiwon')) // Kiwon finishes; Lucas is up now
+    expect(await claim(sent.bump_id)).toEqual([])
+  })
+
+  test('never claims old bumps, unknown bumps, or non-ids', async () => {
+    const sent = await freshBump(trash, 'Kiwon')
+    await age('5 minutes')
+    expect(await claim(sent.bump_id)).toEqual([])
+    expect(await claim('00000000-0000-0000-0000-000000000000')).toEqual([])
+  })
+
+  test('only the notify function (service_role) may call it', async () => {
+    const sent = await freshBump(trash, 'Kiwon')
+    for (const role of ['anon', 'authenticated'] as const) {
+      await expect(t.as(role, () => t.rows('select * from claim_bump_notification($1)', [sent.bump_id]))).rejects.toThrow()
+    }
+    // ...and the failed attempts must not have used up the claim.
+    expect(await claim(sent.bump_id)).toHaveLength(1)
+  })
+
+  test('service_role still cannot read the bumps table directly', async () => {
+    await expect(t.as('service_role', () => t.rows('select * from bumps'))).rejects.toThrow()
   })
 })

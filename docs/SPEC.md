@@ -55,7 +55,7 @@ A mobile-first web app for 4 roommates with two chore wheels (Dishes, Trash). Ea
 ## Anonymous bump rules
 - Server never records who bumped. The bump RPC stores only `chore_id`, `target_member_id`, `created_at`.
 - The person on top can't see a bump button for themselves.
-- Rate limit globally per chore (not per person, to preserve anonymity): max 1 bump per chore per 6 hours. If limited, show "Someone already nudged them recently."
+- Rate limit globally per chore (not per person, to preserve anonymity): max 1 bump per chore per 6 hours (changed to 12 hours by the owner; see CLAUDE.md). If limited, show "Someone already nudged them recently."
 - Recipient sees nothing in the activity feed; just the push and an optional "You were nudged" banner in-app.
 
 ## Data model (Postgres)
