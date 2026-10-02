@@ -46,6 +46,9 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 7. Shared todo list (+ pushes when a todo is checked off) — done and live (migrations `…0500`-`…0700` run, `notify` and
    the app redeployed); a real-device test of the todo pings is still pending
 8. Polish and README with full setup steps — done (README covers setup from scratch; lint warnings resolved; iOS tap delay removed)
+9. Reactions on the feed and the automatic 4-day reminder — done and live (migrations `…0800` and `…0900` run, `configure_reminders`
+   run for America/New_York, `notify` and the app redeployed). Still to confirm on the live project: that the `pg_cron` job exists and
+   a real reminder arrives on a phone (see "Test it live" above).
 
 (The repo's `docs/SPEC.md` is the updated spec: milestones 6-8 and the todo list. Its older lines that we deliberately
 differ from are listed in the note at its top.)
