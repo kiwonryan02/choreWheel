@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { REACTIONS, type ReactionKind } from '../config/reactions'
 import type { ReactionResult } from '../data/useActivity'
 import { useActivity } from '../data/useActivity'
@@ -101,20 +101,71 @@ interface ReactionsProps {
   onReact: (kind: ReactionKind, on: boolean) => void
 }
 
+/** How long a press has to last before it counts as "press and hold". */
+const LONG_PRESS_MS = 450
+/** How long the "who reacted" bubble stays up after you let go. */
+const BUBBLE_LINGER_MS = 2500
+
 /**
- * Chips for the reactions an entry has, each showing WHO reacted (names are short and there are only
- * four people, and a hover tooltip would not work on a phone). Tap a chip to add or take back yours;
- * the "+" adds a reaction nobody has used yet.
+ * Chips for the reactions an entry has: emoji and a count. Tap a chip to add or take back yours;
+ * PRESS AND HOLD one to see who reacted. (Not a hover tooltip: phones don't show those.) The "+"
+ * adds a reaction nobody has used yet.
  */
 function Reactions({ entry, members, me, onReact }: ReactionsProps) {
   const [picking, setPicking] = useState(false)
-  const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? 'Someone'
+  const [whoKind, setWhoKind] = useState<ReactionKind | null>(null)
+  const holdTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // True once the current press has turned into a hold, so the tap that follows the
+  // release doesn't also toggle your reaction.
+  const wasHold = useRef(false)
 
+  useEffect(
+    () => () => {
+      clearTimeout(holdTimer.current)
+      clearTimeout(hideTimer.current)
+    },
+    [],
+  )
+
+  const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? 'Someone'
   const used = REACTIONS.filter((r) => entry.reactions.some((x) => x.kind === r.kind))
   const unused = REACTIONS.filter((r) => !used.includes(r))
 
+  function startPress(kind: ReactionKind) {
+    wasHold.current = false
+    clearTimeout(holdTimer.current)
+    clearTimeout(hideTimer.current)
+    holdTimer.current = setTimeout(() => {
+      wasHold.current = true
+      setWhoKind(kind)
+    }, LONG_PRESS_MS)
+  }
+  function endPress() {
+    clearTimeout(holdTimer.current)
+    if (wasHold.current) hideTimer.current = setTimeout(() => setWhoKind(null), BUBBLE_LINGER_MS)
+  }
+  function cancelPress() {
+    // The browser took over (e.g. you started scrolling): this wasn't a tap or a hold.
+    clearTimeout(holdTimer.current)
+    wasHold.current = false
+    setWhoKind(null)
+  }
+
+  const bubble = whoKind && REACTIONS.find((r) => r.kind === whoKind)
+  const bubbleNames = whoKind ? entry.reactions.filter((x) => x.kind === whoKind).map((x) => nameOf(x.memberId)) : []
+
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-6">
+    <div className="relative mt-2 flex flex-wrap items-center gap-1.5 pl-6">
+      {bubble && bubbleNames.length > 0 && (
+        <div
+          role="status"
+          className="absolute right-0 bottom-full left-6 mb-1 w-fit max-w-full rounded-xl bg-slate-900 px-3 py-1.5 text-xs text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
+        >
+          {bubble.emoji} {bubbleNames.join(', ')}
+        </div>
+      )}
+
       {used.map((r) => {
         const who = entry.reactions.filter((x) => x.kind === r.kind).map((x) => nameOf(x.memberId))
         const mine = entry.reactions.some((x) => x.kind === r.kind && x.memberId === me.id)
@@ -123,16 +174,27 @@ function Reactions({ entry, members, me, onReact }: ReactionsProps) {
             key={r.kind}
             type="button"
             aria-pressed={mine}
+            // Screen readers get the names; sighted users get them by pressing and holding.
             aria-label={`${r.label}: ${who.join(', ')}${mine ? ' (tap to take yours back)' : ''}`}
-            title={`${r.label}: ${who.join(', ')}`}
-            onClick={() => onReact(r.kind, !mine)}
-            className={`rounded-full border px-2.5 py-1 text-sm ${
+            onPointerDown={() => startPress(r.kind)}
+            onPointerUp={endPress}
+            onPointerLeave={endPress}
+            onPointerCancel={cancelPress}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={() => {
+              if (wasHold.current) {
+                wasHold.current = false
+                return
+              }
+              onReact(r.kind, !mine)
+            }}
+            className={`rounded-full border px-2.5 py-1 text-sm [-webkit-touch-callout:none] select-none ${
               mine
                 ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100'
                 : 'border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
-            {r.emoji} {who.join(', ')}
+            {r.emoji} {who.length}
           </button>
         )
       })}
