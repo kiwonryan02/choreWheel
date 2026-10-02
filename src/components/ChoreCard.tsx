@@ -24,7 +24,7 @@ export default function ChoreCard({ chore, meId, onMarkDone, onBump, bumping = f
   const isMyTurn = meId === chore.currentMemberId
 
   return (
-    <section className="flex min-h-[calc(100svh-3.5rem)] scroll-mt-14 snap-start flex-col items-center justify-center gap-5 px-6 py-6">
+    <section className="flex min-h-[calc(100svh-7.5rem-env(safe-area-inset-bottom))] scroll-mt-14 snap-start flex-col items-center justify-center gap-5 px-6 py-6">
       <Wheel
         members={chore.rotation}
         currentId={chore.currentMemberId}

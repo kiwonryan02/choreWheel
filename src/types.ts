@@ -16,3 +16,13 @@ export interface Chore {
   /** When currentMemberId became responsible (chores.updated_at). */
   since: Date
 }
+
+/** One line of the activity feed: someone finished a chore, or checked off a todo. */
+export interface ActivityEntry {
+  id: string
+  kind: 'chore' | 'todo'
+  memberId: string
+  choreId: string | null
+  todoId: string | null
+  createdAt: Date
+}

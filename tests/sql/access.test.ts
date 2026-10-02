@@ -45,7 +45,7 @@ describe('the public (anon) key', () => {
 
   test('cannot write chores, activity, or members directly', async () => {
     expect(await rejects(t.as('anon', () => t.rows(`update chores set updated_at = now()`)))).toBe(true)
-    expect(await rejects(t.as('anon', () => t.rows(`insert into activity (chore_id, member_id) select chore_id, member_id from chore_rotation limit 1`)))).toBe(true)
+    expect(await rejects(t.as('anon', () => t.rows(`insert into activity (kind, chore_id, member_id) select 'chore', chore_id, member_id from chore_rotation limit 1`)))).toBe(true)
     expect(await rejects(t.as('anon', () => t.rows(`delete from members`)))).toBe(true)
   })
 
@@ -76,7 +76,7 @@ describe('the notify function (service_role)', () => {
     expect(
       await rejects(
         t.as('service_role', () =>
-          t.rows(`insert into activity (chore_id, member_id) values ($1, $2)`, [chore, t.members.Kiwon]),
+          t.rows(`insert into activity (kind, chore_id, member_id) values ('chore', $1, $2)`, [chore, t.members.Kiwon]),
         ),
       ),
     ).toBe(true)

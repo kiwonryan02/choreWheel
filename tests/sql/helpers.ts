@@ -10,7 +10,13 @@ const SUPABASE_DIR = join(import.meta.dir, '../../supabase')
 
 export const PASSCODE = '4821'
 
-export async function createDb(options: { passcode?: string | null } = {}) {
+/**
+ * Builds a database from the real migrations + seed.
+ * `stopAfter` applies only migrations up to and including that file prefix
+ * (e.g. '20261001000400'); call `migrateRest()` to apply the others. This lets
+ * a test create data under an old schema and then migrate it.
+ */
+export async function createDb(options: { passcode?: string | null; stopAfter?: string } = {}) {
   const passcode = options.passcode === undefined ? PASSCODE : options.passcode
   const db = new PGlite()
   await db.exec(`
@@ -20,8 +26,17 @@ export async function createDb(options: { passcode?: string | null } = {}) {
     create publication supabase_realtime;
   `)
   const migrations = readdirSync(join(SUPABASE_DIR, 'migrations')).sort()
-  for (const file of migrations) {
+  const applied = new Set<string>()
+  const apply = async (file: string) => {
     await db.exec(readFileSync(join(SUPABASE_DIR, 'migrations', file), 'utf8'))
+    applied.add(file)
+  }
+  for (const file of migrations) {
+    if (options.stopAfter && file.slice(0, options.stopAfter.length) > options.stopAfter) break
+    await apply(file)
+  }
+  const migrateRest = async () => {
+    for (const file of migrations) if (!applied.has(file)) await apply(file)
   }
   await db.exec(readFileSync(join(SUPABASE_DIR, 'seed.sql'), 'utf8'))
   if (passcode) await db.query('select set_household_passcode($1)', [passcode])
@@ -50,7 +65,7 @@ export async function createDb(options: { passcode?: string | null } = {}) {
   const complete = (pass: string | null, chore: string, who: string) =>
     one('select * from complete_chore($1, $2, $3)', [pass, chore, members[who]])
 
-  return { db, rows, one, as, choreId, members, nameOf, complete }
+  return { db, rows, one, as, choreId, members, nameOf, complete, migrateRest }
 }
 
 /** True if the promise rejects (e.g. permission denied). */

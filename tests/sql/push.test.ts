@@ -51,7 +51,7 @@ describe('announcing a completion (what the notify function does)', () => {
       t.as('service_role', () =>
         t.rows(
           `update activity set notified_at = now()
-            where id = $1 and notified_at is null and completed_at >= now() - interval '2 minutes'
+            where id = $1 and notified_at is null and created_at >= now() - interval '2 minutes'
             returning chore_id, member_id`,
           [done.activity_id],
         ),
@@ -63,11 +63,11 @@ describe('announcing a completion (what the notify function does)', () => {
   test('old completions are never announced', async () => {
     const chore = await t.choreId('trash')
     const done = await t.as('anon', () => t.complete(PASSCODE, chore, 'Kiwon'))
-    await t.db.query(`update activity set completed_at = now() - interval '10 minutes' where id = $1`, [done.activity_id])
+    await t.db.query(`update activity set created_at = now() - interval '10 minutes' where id = $1`, [done.activity_id])
     const claimed = await t.as('service_role', () =>
       t.rows(
         `update activity set notified_at = now()
-          where id = $1 and notified_at is null and completed_at >= now() - interval '2 minutes' returning id`,
+          where id = $1 and notified_at is null and created_at >= now() - interval '2 minutes' returning id`,
         [done.activity_id],
       ),
     )

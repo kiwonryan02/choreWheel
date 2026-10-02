@@ -1,6 +1,6 @@
 // notify: sends Web Push notifications.
 //
-// Two request types, both called by the app right after the matching RPC:
+// Two request types, both called by the app right after the matching RPC (todos send none, by design):
 //   { type: 'chore_completed', activity_id }  after complete_chore
 //   { type: 'bump',            bump_id }      after bump_chore
 //
@@ -81,14 +81,20 @@ Deno.serve(async (req) => {
   return json({ error: 'unknown request' }, 400)
 })
 
+// TODO(todo push, deliberately NOT built in v1): todos have no push notifications, only
+// live in-app updates and the feed. If wanted later ("Alex checked off 'Buy paper towels'"),
+// add a 'todo_done' request type next to the two below that claims an activity row with
+// kind = 'todo' the same way, builds its message in message.ts, and sends to everyone except
+// the person who checked it off. The app would call it right after set_todo_done.
 async function choreCompleted(activityId: string): Promise<Response> {
   // Claim the completion. The null check makes this a once-only operation.
   const { data: activity, error: claimError } = await db
     .from('activity')
     .update({ notified_at: new Date().toISOString() })
     .eq('id', activityId)
+    .eq('kind', 'chore') // todo entries are never announced (see the TODO above)
     .is('notified_at', null)
-    .gte('completed_at', claimCutoff())
+    .gte('created_at', claimCutoff())
     .select('chore_id, member_id')
     .maybeSingle()
   if (claimError) throw claimError
