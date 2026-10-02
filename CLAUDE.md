@@ -94,6 +94,16 @@ Remaining work is marked with `TODO(M#)` comments.
   (and counts as a wrong guess). To eyeball the UI without the real passcode, load the app in a same-origin iframe with the
   `get_nudges` RPC stubbed; don't add test-only code to the app.
 
+## Reactions on the feed
+- `reactions(activity_id, member_id, kind)`, primary key on all three: a person can use several different reactions on an entry
+  but each once. Kinds are `thumbs_up`, `heart`, `goat`, `thanks` (👍 ❤️ 🐐 🙏), enforced by a CHECK; the emoji live in
+  `src/config/reactions.ts`. Reactions are **visible and attributed** (unlike bumps): the chips show counts, and the names are
+  in each chip's tooltip/aria-label.
+- `set_reaction(passcode, activity_id, member_id, kind, on)` is idempotent and status-returning, like the todo RPCs; the public
+  key can only read `reactions`. Reactions cascade-delete with their feed entry (unchecking a todo removes both).
+- The feed reloads on any Realtime activity/reaction insert or delete; our own reactions are applied optimistically first.
+- No notifications for reactions.
+
 ## Bump design (M5)
 - `bump_chore(passcode, chore_id, expected_member_id)` takes **no sender**, and `bumps` has **no sender column**.
   `tests/sql/bump.test.ts` pins the exact column list and function arguments, so adding an identifying field fails a test.

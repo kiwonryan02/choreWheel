@@ -1,3 +1,5 @@
+import type { ReactionKind } from './config/reactions'
+
 export interface Member {
   id: string
   name: string
@@ -17,6 +19,11 @@ export interface Chore {
   since: Date
 }
 
+export interface Reaction {
+  memberId: string
+  kind: ReactionKind
+}
+
 /** One line of the activity feed: someone finished a chore, or checked off a todo. */
 export interface ActivityEntry {
   id: string
@@ -27,6 +34,7 @@ export interface ActivityEntry {
   /** For todo entries: the task's text. */
   todoText: string | null
   createdAt: Date
+  reactions: Reaction[]
 }
 
 export interface Todo {

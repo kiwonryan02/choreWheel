@@ -25,9 +25,9 @@ describe('seed', () => {
     ])
   })
 
-  test('Realtime publishes chores, activity and todos only', async () => {
+  test('Realtime publishes chores, activity, todos and reactions only', async () => {
     const tables = await t.rows(`select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by 1`)
-    expect(tables.map((r) => r.tablename)).toEqual(['activity', 'chores', 'todos'])
+    expect(tables.map((r) => r.tablename)).toEqual(['activity', 'chores', 'reactions', 'todos'])
   })
 })
 

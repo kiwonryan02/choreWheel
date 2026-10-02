@@ -157,7 +157,14 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
           />
         </div>
         <div hidden={tab !== 'activity'}>
-          <ActivityScreen members={members} chores={chores} />
+          <ActivityScreen
+            members={members}
+            chores={chores}
+            me={me}
+            passcode={passcode}
+            showNotice={setNotice}
+            onPasscodeRejected={onPasscodeRejected}
+          />
         </div>
       </main>
 
