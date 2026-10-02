@@ -100,8 +100,8 @@ Remaining work is marked with `TODO(M#)` comments.
 ## Reactions on the feed
 - `reactions(activity_id, member_id, kind)`, primary key on all three: a person can use several different reactions on an entry
   but each once. Kinds are `thumbs_up`, `heart`, `goat`, `thanks` (👍 ❤️ 🐐 🙏), enforced by a CHECK; the emoji live in
-  `src/config/reactions.ts`. Reactions are **visible and attributed** (unlike bumps): the chips show counts, and the names are
-  in each chip's tooltip/aria-label.
+  `src/config/reactions.ts`. Reactions are **visible and attributed** (unlike bumps): each chip shows the emoji and the **names**
+  of who reacted ("👍 Lucas, Anish"). Don't rely on `title` tooltips for anything: they don't appear on touch screens.
 - `set_reaction(passcode, activity_id, member_id, kind, on)` is idempotent and status-returning, like the todo RPCs; the public
   key can only read `reactions`. Reactions cascade-delete with their feed entry (unchecking a todo removes both).
 - The feed reloads on any Realtime activity/reaction insert or delete; our own reactions are applied optimistically first.

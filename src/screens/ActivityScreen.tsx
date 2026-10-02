@@ -101,7 +101,11 @@ interface ReactionsProps {
   onReact: (kind: ReactionKind, on: boolean) => void
 }
 
-/** Chips for the reactions an entry has (tap to add or take back yours), plus a "+" to add another. */
+/**
+ * Chips for the reactions an entry has, each showing WHO reacted (names are short and there are only
+ * four people, and a hover tooltip would not work on a phone). Tap a chip to add or take back yours;
+ * the "+" adds a reaction nobody has used yet.
+ */
 function Reactions({ entry, members, me, onReact }: ReactionsProps) {
   const [picking, setPicking] = useState(false)
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? 'Someone'
@@ -120,7 +124,7 @@ function Reactions({ entry, members, me, onReact }: ReactionsProps) {
             type="button"
             aria-pressed={mine}
             aria-label={`${r.label}: ${who.join(', ')}${mine ? ' (tap to take yours back)' : ''}`}
-            title={who.join(', ')}
+            title={`${r.label}: ${who.join(', ')}`}
             onClick={() => onReact(r.kind, !mine)}
             className={`rounded-full border px-2.5 py-1 text-sm ${
               mine
@@ -128,7 +132,7 @@ function Reactions({ entry, members, me, onReact }: ReactionsProps) {
                 : 'border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-300'
             }`}
           >
-            {r.emoji} {who.length}
+            {r.emoji} {who.join(', ')}
           </button>
         )
       })}
