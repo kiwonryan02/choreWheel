@@ -21,17 +21,24 @@ export async function savePushSubscription(
 }
 
 /**
- * Asks the notify Edge Function to ping everyone about a completed chore.
- * The function sends at most one notification per activity row, so retrying
- * is safe. Failures are logged and swallowed: the chore is already done.
+ * Asks the notify Edge Function to send notifications for something that just
+ * happened. The function sends at most once per row, so retrying is safe.
+ * Failures are logged and swallowed: the underlying action already succeeded.
  */
-export async function announceCompletion(activityId: string): Promise<void> {
+async function invokeNotify(body: Record<string, string>, what: string): Promise<void> {
+  // Push is only wired up when this deployment has a VAPID public key.
+  if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) return
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const { error } = await supabase.functions.invoke('notify', {
-      body: { type: 'chore_completed', activity_id: activityId },
-    })
+    const { error } = await supabase.functions.invoke('notify', { body })
     if (!error) return
-    if (attempt === 3) console.warn('Could not send completion notifications', error)
+    if (attempt === 3) console.warn(`Could not send ${what} notifications`, error)
     else await new Promise((resolve) => setTimeout(resolve, attempt * 1000))
   }
 }
+
+/** Pings everyone (except the completer) about a completed chore. */
+export const announceCompletion = (activityId: string) =>
+  invokeNotify({ type: 'chore_completed', activity_id: activityId }, 'completion')
+
+/** Pings only the person who was bumped. The request carries nothing about the sender. */
+export const announceBump = (bumpId: string) => invokeNotify({ type: 'bump', bump_id: bumpId }, 'bump')

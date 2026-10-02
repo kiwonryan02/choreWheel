@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import ChoreCard from '../components/ChoreCard'
 import CompletionSheet from '../components/CompletionSheet'
 import Notifications from '../components/Notifications'
+import Nudges from '../components/Nudges'
 import SettingsMenu from '../components/SettingsMenu'
+import { bumpChore } from '../data/bump'
+import { announceBump } from '../data/push'
 import { useHousehold } from '../data/useHousehold'
 import { readStored, STORAGE_KEYS, writeStored } from '../lib/storage'
 import type { Chore } from '../types'
@@ -46,6 +49,27 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
     else if (result === 'invalid') onPasscodeRejected()
     else if (result === 'not_set' || result === 'error')
       setNotice("Couldn't save that. Check your connection and try again.")
+  }
+
+  const [bumpingChoreId, setBumpingChoreId] = useState<string | null>(null)
+
+  // The server is told who is being bumped, never who is bumping.
+  async function handleBump(chore: Chore) {
+    if (bumpingChoreId) return
+    setBumpingChoreId(chore.id)
+    const { status, bumpId } = await bumpChore(passcode, chore.id, chore.currentMemberId)
+    setBumpingChoreId(null)
+
+    if (status === 'sent') {
+      setNotice("Nudge sent. They won't know it was you.")
+      if (bumpId) void announceBump(bumpId)
+    } else if (status === 'rate_limited') setNotice('Someone already nudged them recently.')
+    else if (status === 'stale') {
+      void retry() // the wheel moved while this screen was open
+      setNotice('The wheel just moved on. It now shows who is up.')
+    } else if (status === 'locked') setNotice('Too many wrong passcode tries. Wait a few minutes and try again.')
+    else if (status === 'invalid') onPasscodeRejected()
+    else setNotice("Couldn't send that. Check your connection and try again.")
   }
 
   if (!loaded) {
@@ -97,6 +121,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
       </header>
 
       <Notifications memberId={me.id} passcode={passcode} onPasscodeRejected={onPasscodeRejected} />
+      <Nudges memberId={me.id} passcode={passcode} chores={chores} onPasscodeRejected={onPasscodeRejected} />
 
       <main>
         {chores.map((chore) => (
@@ -105,8 +130,8 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
             chore={chore}
             meId={me.id}
             onMarkDone={() => setSheetChoreId(chore.id)}
-            // TODO(M5): bump RPC with global rate limit.
-            onBump={() => {}}
+            onBump={() => void handleBump(chore)}
+            bumping={bumpingChoreId === chore.id}
           />
         ))}
       </main>

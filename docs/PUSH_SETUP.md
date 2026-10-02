@@ -14,6 +14,10 @@ How it works, briefly:
    Because of the claim, each completion notifies at most once, which is why it is safe for the function to be
    callable with the public key.
 
+The same function also sends the anonymous-bump nudge ("Friendly nudge: the trash is waiting on you.") to just the
+person who was bumped. Milestone 5's migration (`20261001000400_bump.sql`) adds what it needs; after running it,
+redeploy `notify` (step 3's deploy command) so the function knows about bumps.
+
 ## 1. Database
 
 Run `supabase/migrations/20261001000300_push.sql` in the Supabase SQL editor (after the earlier migrations).

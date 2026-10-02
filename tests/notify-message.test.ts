@@ -1,5 +1,26 @@
 import { describe, expect, test } from 'bun:test'
-import { buildCompletedMessage } from '../supabase/functions/notify/message.ts'
+import { buildBumpMessage, buildCompletedMessage } from '../supabase/functions/notify/message.ts'
+
+describe('buildBumpMessage', () => {
+  test('matches the wording in the spec', () => {
+    const msg = buildBumpMessage({ choreSlug: 'trash', choreName: 'Trash' })
+    expect(msg.body).toBe('Friendly nudge: the trash is waiting on you.')
+    expect(msg.title).toBe('Trash')
+    expect(msg.tag).toBe('bump-trash')
+  })
+
+  test('is built from the chore alone, so it cannot name a sender', () => {
+    // The function signature takes no person at all; this guards the output too.
+    const msg = JSON.stringify(buildBumpMessage({ choreSlug: 'dishes', choreName: 'Dishes' }))
+    for (const name of ['Kiwon', 'Lucas', 'Anish', 'Carter']) expect(msg).not.toContain(name)
+  })
+
+  test('uses its own tag so it never replaces a "done" notification', () => {
+    const bump = buildBumpMessage({ choreSlug: 'dishes', choreName: 'Dishes' })
+    const done = buildCompletedMessage({ choreSlug: 'dishes', choreName: 'Dishes', completerName: 'A', nextName: 'B' })
+    expect(bump.tag).not.toBe(done.tag)
+  })
+})
 
 describe('buildCompletedMessage', () => {
   test('matches the wording in the spec', () => {

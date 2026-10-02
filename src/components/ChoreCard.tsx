@@ -9,9 +9,11 @@ interface ChoreCardProps {
   meId: string | null
   onMarkDone: () => void
   onBump: () => void
+  /** A bump for this chore is in flight; stops a double-tap from sending two. */
+  bumping?: boolean
 }
 
-export default function ChoreCard({ chore, meId, onMarkDone, onBump }: ChoreCardProps) {
+export default function ChoreCard({ chore, meId, onMarkDone, onBump, bumping = false }: ChoreCardProps) {
   const now = useNow()
   const current = chore.rotation.find((m) => m.id === chore.currentMemberId)
   if (!current) return null
@@ -66,9 +68,10 @@ export default function ChoreCard({ chore, meId, onMarkDone, onBump }: ChoreCard
         <button
           type="button"
           onClick={onBump}
-          className="w-full max-w-xs rounded-2xl border-2 border-slate-300 px-6 py-4 text-lg font-semibold text-slate-700 transition active:scale-[0.98] dark:border-slate-700 dark:text-slate-200"
+          disabled={bumping}
+          className="w-full max-w-xs rounded-2xl border-2 border-slate-300 px-6 py-4 text-lg font-semibold text-slate-700 transition active:scale-[0.98] disabled:opacity-50 dark:border-slate-700 dark:text-slate-200"
         >
-          Bump {current.name}
+          {bumping ? 'Sending…' : `Bump ${current.name}`}
         </button>
       )}
     </section>

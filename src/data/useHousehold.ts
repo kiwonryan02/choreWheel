@@ -4,9 +4,6 @@ import { supabase } from '../lib/supabase'
 import type { Chore, Member } from '../types'
 import { announceCompletion } from './push'
 
-// Push is only wired up when the deployment has a VAPID public key.
-const VAPID_PUBLIC_KEY: string | undefined = import.meta.env.VITE_VAPID_PUBLIC_KEY
-
 interface ChoreRow {
   id: string
   slug: string
@@ -148,7 +145,7 @@ export function useHousehold() {
       if (result.status === 'done' || result.status === 'stale') {
         if (result.up_now && result.since) applyServerState(choreId, result.up_now, result.since)
         // Ping the other roommates. Not awaited: the chore is already done.
-        if (result.status === 'done' && result.activity_id && VAPID_PUBLIC_KEY) {
+        if (result.status === 'done' && result.activity_id) {
           void announceCompletion(result.activity_id)
         }
       } else {

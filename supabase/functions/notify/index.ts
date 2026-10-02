@@ -1,10 +1,17 @@
-// notify: sends Web Push notifications when a chore is completed.
+// notify: sends Web Push notifications.
 //
-// Called by the app right after a successful complete_chore, with the new
-// activity row's id. The function CLAIMS that row (sets notified_at, only if
-// still null and recent), so however often it is called, each completion
-// notifies at most once. That is what makes it safe to leave this function
-// callable with the public key: it can't be used to spam anyone.
+// Two request types, both called by the app right after the matching RPC:
+//   { type: 'chore_completed', activity_id }  after complete_chore
+//   { type: 'bump',            bump_id }      after bump_chore
+//
+// Each call CLAIMS its row (sets notified_at, only if still null and recent),
+// so however often it is called, each completion or bump notifies at most
+// once. That is what makes it safe to leave this function callable with the
+// public key: it can't be used to spam anyone.
+//
+// ANONYMITY: a bump request carries only the bump's id. Nothing about who sent
+// it exists anywhere (not in the request, the table, or the notification), and
+// this function must never log or store anything that could identify them.
 //
 // Deploy with "Verify JWT" OFF: the app authenticates with a publishable key,
 // which isn't a JWT. See docs/PUSH_SETUP.md.
@@ -14,7 +21,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
-import { buildCompletedMessage } from './message.ts'
+import { buildBumpMessage, buildCompletedMessage, type PushMessage } from './message.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +29,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// Only completions this recent can be announced; older ones are never replayed.
+// Only events this recent can be announced; older ones are never replayed.
 const MAX_AGE_MS = 2 * 60 * 1000
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -46,41 +53,42 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
+const isId = (value: unknown): value is string => typeof value === 'string' && UUID.test(value)
+const claimCutoff = () => new Date(Date.now() - MAX_AGE_MS).toISOString()
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
-  let body: { type?: unknown; activity_id?: unknown }
+  let body: { type?: unknown; activity_id?: unknown; bump_id?: unknown }
   try {
     body = await req.json()
   } catch {
     return json({ error: 'invalid json' }, 400)
   }
 
-  if (
-    body.type === 'chore_completed' &&
-    typeof body.activity_id === 'string' &&
-    UUID.test(body.activity_id)
-  ) {
-    try {
+  try {
+    if (body.type === 'chore_completed' && isId(body.activity_id)) {
       return await choreCompleted(body.activity_id)
-    } catch (err) {
-      console.error('chore_completed failed', err)
-      return json({ error: 'internal error' }, 500)
     }
+    if (body.type === 'bump' && isId(body.bump_id)) {
+      return await bumped(body.bump_id)
+    }
+  } catch (err) {
+    console.error('notify failed', err)
+    return json({ error: 'internal error' }, 500)
   }
   return json({ error: 'unknown request' }, 400)
 })
 
 async function choreCompleted(activityId: string): Promise<Response> {
   // Claim the completion. The null check makes this a once-only operation.
-  const cutoff = new Date(Date.now() - MAX_AGE_MS).toISOString()
   const { data: activity, error: claimError } = await db
     .from('activity')
     .update({ notified_at: new Date().toISOString() })
     .eq('id', activityId)
     .is('notified_at', null)
-    .gte('completed_at', cutoff)
+    .gte('completed_at', claimCutoff())
     .select('chore_id, member_id')
     .maybeSingle()
   if (claimError) throw claimError
@@ -107,21 +115,65 @@ async function choreCompleted(activityId: string): Promise<Response> {
     .neq('member_id', activity.member_id)
   if (subsError) throw subsError
 
-  const message = JSON.stringify(
-    buildCompletedMessage({
-      choreSlug: chore.slug,
-      choreName: chore.name,
-      completerName: nameOf(activity.member_id),
-      nextName: nameOf(chore.current_member_id),
-    }),
+  return json(
+    await sendAll(
+      subscriptions,
+      buildCompletedMessage({
+        choreSlug: chore.slug,
+        choreName: chore.name,
+        completerName: nameOf(activity.member_id),
+        nextName: nameOf(chore.current_member_id),
+      }),
+    ),
   )
+}
 
+async function bumped(bumpId: string): Promise<Response> {
+  const { data: bump, error: claimError } = await db
+    .from('bumps')
+    .update({ notified_at: new Date().toISOString() })
+    .eq('id', bumpId)
+    .is('notified_at', null)
+    .gte('created_at', claimCutoff())
+    .select('chore_id, target_member_id')
+    .maybeSingle()
+  if (claimError) throw claimError
+  if (!bump) return json({ sent: 0, reason: 'already announced, too old, or unknown' })
+
+  const { data: chore, error: choreError } = await db
+    .from('chores')
+    .select('slug, name')
+    .eq('id', bump.chore_id)
+    .single()
+  if (choreError) throw choreError
+
+  // Only the person who was bumped.
+  const { data: subscriptions, error: subsError } = await db
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .eq('member_id', bump.target_member_id)
+  if (subsError) throw subsError
+
+  return json(
+    await sendAll(subscriptions, buildBumpMessage({ choreSlug: chore.slug, choreName: chore.name })),
+  )
+}
+
+interface Subscription {
+  id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+async function sendAll(subscriptions: Subscription[], message: PushMessage) {
+  const payload = JSON.stringify(message)
   const outcomes = await Promise.all(
     subscriptions.map(async (sub) => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          message,
+          payload,
           { TTL: 60 * 60 },
         )
         return 'sent'
@@ -132,12 +184,11 @@ async function choreCompleted(activityId: string): Promise<Response> {
           await db.from('push_subscriptions').delete().eq('id', sub.id)
           return 'pruned'
         }
-        console.error('push failed', status, err)
+        console.error('push failed', status)
         return 'failed'
       }
     }),
   )
-
   const count = (kind: string) => outcomes.filter((o) => o === kind).length
-  return json({ sent: count('sent'), pruned: count('pruned'), failed: count('failed') })
+  return { sent: count('sent'), pruned: count('pruned'), failed: count('failed') }
 }

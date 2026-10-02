@@ -17,6 +17,25 @@ export interface CompletedInput {
   nextName: string
 }
 
+export interface BumpInput {
+  choreSlug: string
+  choreName: string
+}
+
+/**
+ * "Friendly nudge: the trash is waiting on you."
+ * Deliberately takes no sender: a bump is anonymous, so nothing here (or in
+ * the data it is built from) can say who sent it.
+ */
+export function buildBumpMessage({ choreSlug, choreName }: BumpInput): PushMessage {
+  return {
+    title: choreName,
+    body: `Friendly nudge: the ${choreName.toLowerCase()} is waiting on you.`,
+    tag: `bump-${choreSlug}`,
+    url: '/',
+  }
+}
+
 /** "Sam finished the dishes. Next up: Alex." */
 export function buildCompletedMessage(input: CompletedInput): PushMessage {
   const { choreSlug, choreName, completerName, nextName } = input

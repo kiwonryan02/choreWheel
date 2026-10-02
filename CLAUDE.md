@@ -37,7 +37,7 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 3. Identity picker + passcode gate — done
 4. PWA install + Web Push for completions — `notify` is deployed (project `hurozxaezghiiwmzxwah`) and smoke-tested;
    a real-device push test is still pending until the app is on HTTPS (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
-5. Anonymous bump with rate limit — next
+5. Anonymous bump with rate limit — code done; needs the bump migration run, `notify` redeployed, and the app redeployed
 6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
 
 Remaining work is marked with `TODO(M#)` comments.
@@ -61,8 +61,21 @@ Remaining work is marked with `TODO(M#)` comments.
   calls the `notify` Edge Function, which claims the row via `activity.notified_at` so it notifies at most once. No pg_net
   or webhook secret is needed. Trade-off: if the completer's app dies between the two calls, that one ping is lost.
 - The completer's devices are skipped. Subscriptions are filed per member and re-filed when someone switches person.
-- The bump notification (M5) should reuse the same pattern: claim a `bumps` row once, send only to the target member,
-  and never record or log anything that identifies the bumper.
+- The bump notification reuses the same pattern: `notify` claims a `bumps` row once (`bumps.notified_at`), sends only to
+  the target member, and its message names no one.
+
+## Bump design (M5)
+- `bump_chore(passcode, chore_id, expected_member_id)` takes **no sender**, and `bumps` has **no sender column**.
+  `tests/sql/bump.test.ts` pins the exact column list and function arguments, so adding an identifying field fails a test.
+  Platform request logs (Supabase/Vercel) still see IPs like any hosted API; the guarantee is that **no row, API response,
+  or notification** can reveal the bumper.
+- Rate limit, per the spec: at most 1 bump per **chore** per 6 hours, global, **regardless of who is targeted**. So a
+  bump aimed at the previous holder also blocks bumping the new holder until the 6 hours pass. If that proves annoying,
+  the fix is to count only bumps at the current holder within their current stint (as `get_nudges` already does).
+- The recipient's in-app "Friendly nudge" banner comes from `get_nudges` (passcode-checked): bumps during their current
+  stint, within 6 hours. Dismissals are per device in localStorage (`chorewheel.nudgeSeen.<chore id>`). `bumps` itself
+  stays unreadable by the public key and isn't on Realtime, so the app polls (load, foreground, wheel change, every 60s).
+  On an `invalid` passcode the polling stops and the passcode is cleared, so it can't burn through the lockout.
 - Secrets: `supabase/push-secrets.local` (gitignored, holds the VAPID private key) is pushed to Supabase with
   `supabase secrets set --env-file`. Never print it or paste it into chat.
 - The Edge Function can't run locally (no Deno), and the in-app browser can't run service workers or push.
