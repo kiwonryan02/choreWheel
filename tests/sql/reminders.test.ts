@@ -92,21 +92,22 @@ describe('which chores get a reminder', () => {
   })
 })
 
-describe('quiet hours (09:00 to 21:00 household time)', () => {
+describe('quiet hours (reminders go out 08:00 to 23:00 household time)', () => {
   test('nothing goes out overnight, and it all goes out once the window opens', async () => {
     await age('dishes', '6 days')
-    for (const hhmm of ['00:00', '03:00', '08:59']) expect(await run(at(hhmm))).toBe(0)
+    for (const hhmm of ['00:00', '03:00', '07:59']) expect(await run(at(hhmm))).toBe(0)
     expect(await reminders()).toEqual([])
-    expect(await run(at('09:00'))).toBe(1)
+    expect(await run(at('08:00'))).toBe(1)
   })
 
-  test('the window closes at 21:00', async () => {
+  test('the window closes at 23:00', async () => {
     await age('dishes', '6 days')
-    expect(await run(at('20:59'))).toBe(1)
+    expect(await run(at('22:59'))).toBe(1)
     await reset()
     await age('dishes', '6 days')
-    expect(await run(at('21:00'))).toBe(0)
+    expect(await run(at('23:00'))).toBe(0)
     expect(await run(at('23:30'))).toBe(0)
+    expect(await run(at('23:59'))).toBe(0)
   })
 
   test('uses the configured timezone, not UTC', async () => {

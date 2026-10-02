@@ -82,7 +82,7 @@ Run it again any time to change it. Devices with the old one are asked for the n
 ### 5b. Turn on the 4-day reminders
 
 The last migration schedules the reminder job. Tell it where your notification function lives and what timezone to use for
-quiet hours (reminders only go out 9am-9pm):
+quiet hours (reminders only go out 8am-11pm):
 
 ```sql
 select configure_reminders('https://YOUR-PROJECT-REF.supabase.co/functions/v1/notify', 'America/New_York');

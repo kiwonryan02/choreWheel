@@ -113,10 +113,10 @@ Remaining work is marked with `TODO(M#)` comments.
   function via `pg_net`. Unclaimed reminders are re-requested on later runs for up to a day (so a failed request is retried).
   `notify` calls `claim_reminder_notification` (service_role only), which claims it once and returns the recipient **only if they are
   still on the chore for the same turn**; if they did it first, nothing is sent.
-- **Quiet hours:** only 09:00-21:00 in the household timezone; one that comes due overnight goes out in the morning.
+- **Quiet hours:** only 08:00-23:00 in the household timezone; one that comes due overnight goes out in the morning.
 - **One-time setup, by hand, in the SQL editor** (stored in `app_settings`; until it's run nothing is sent and nothing is recorded):
   `select configure_reminders('https://<project-ref>.supabase.co/functions/v1/notify', 'America/New_York');`
-  Re-run it to change the timezone. The 4 days and the 9-21 window are constants in the SQL function.
+  Re-run it to change the timezone. The 4 days and the 8-23 window are constants in the SQL function.
 - **Test it live:** in the SQL editor, `update chores set updated_at = now() - interval '5 days' where slug = 'trash';` then
   `select send_stale_chore_reminders();` (it returns how many requests it made; only daytime counts, or pass a daytime
   `p_now`). Put things back with `supabase/dev-reset.sql`. Cron history: `select * from cron.job_run_details order by start_time desc limit 5;`

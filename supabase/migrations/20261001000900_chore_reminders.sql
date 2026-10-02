@@ -91,7 +91,7 @@ revoke all on function configure_reminders(text, text) from public, anon, authen
 -- requests it sent.
 --
 --   * not configured: does nothing at all (and records nothing, so nothing is lost)
---   * outside 09:00-21:00 household time: does nothing; the next run in the window
+--   * outside 08:00-23:00 household time: does nothing; the next run in the window
 --     picks it up
 --   * records a reminder for every chore whose current turn is 4+ days old
 --   * asks notify to send every reminder not yet claimed (so a failed request is
@@ -118,7 +118,7 @@ begin
   end if;
 
   v_hour := extract(hour from (p_now at time zone v_tz))::int;
-  if v_hour < 9 or v_hour >= 21 then
+  if v_hour < 8 or v_hour >= 23 then
     return 0;
   end if;
 
