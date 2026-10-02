@@ -30,3 +30,4 @@ dist-ssr
 
 # Supabase CLI scratch
 supabase/.temp/
+.vercel

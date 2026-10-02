@@ -42,6 +42,17 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 
 Remaining work is marked with `TODO(M#)` comments.
 
+## Deployment (Vercel)
+- Deployed with the Vercel CLI from the local working tree, **not** connected to GitHub (connecting needs the Vercel GitHub
+  app installed on the repo). Redeploy with `bunx vercel@latest deploy --prod --yes` from the repo root.
+  `.vercel/` (gitignored) holds the project link; the project name is `lack-wheel-` + random hex.
+- Production env vars (set with `vercel env add … production`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+  `VITE_VAPID_PUBLIC_KEY`. They're baked in at build time, so changing one needs a redeploy.
+- **The production URL is the "unguessable URL" half of access, so never write it into a committed file, a PR, or an
+  issue.** The GitHub repo is currently **public** (it contains the roommates' first names and the Supabase project ref),
+  so the URL must stay out of it. Making the repo private is recommended.
+- Vercel runs Standard deployment protection: the production alias is public; per-deployment URLs require a Vercel login.
+
 ## PWA and push design (M4)
 - `public/sw.js` handles push + notification clicks only and **caches nothing** (so there is never a stale build).
   `public/manifest.webmanifest`: `name` "LACK Chore Wheel", `short_name` "LACK Chores" (home-screen labels truncate
