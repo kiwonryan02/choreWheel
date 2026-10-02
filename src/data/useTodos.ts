@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Todo } from '../types'
+import { announceTodoDone } from './push'
 
 /** How many finished todos the Done section keeps. */
 const DONE_LIMIT = 20
@@ -182,6 +183,9 @@ export function useTodos(passcode: string) {
       }
       // 'unchanged' means someone else got there first; the server's version wins.
       if (status !== 'ok') await refresh()
+      // Ping the others about a check-off (not an uncheck). 'unchanged' is skipped on
+      // purpose: whoever got there first announces it, and the server sends it only once.
+      else if (nextDone) void announceTodoDone(todo.id)
       return status as TodoResult
     },
     [passcode, applyRow, refresh],

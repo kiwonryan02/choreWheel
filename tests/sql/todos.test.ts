@@ -198,3 +198,62 @@ describe('the public key and the feed', () => {
     expect(tables.map((r) => r.tablename)).toContain('todos')
   })
 })
+
+describe('announcing a todo check-off (claim_todo_notification, service_role only)', () => {
+  const claim = (todo: string) =>
+    t.as('service_role', () => t.rows('select * from claim_todo_notification($1)', [todo]))
+
+  test('claims once and returns who checked it off and what the task was', async () => {
+    const { todo_id } = await create('Buy paper towels', 'Kiwon')
+    await setDone(todo_id, 'Lucas', true)
+    expect(await claim(todo_id)).toEqual([{ todo_text: 'Buy paper towels', completer_id: t.members.Lucas }])
+    expect(await claim(todo_id)).toEqual([]) // a repeat call claims nothing
+  })
+
+  test('two phones checking it off at once is still announced once, naming whoever got there first', async () => {
+    const { todo_id } = await create('Wash the car', 'Kiwon')
+    await setDone(todo_id, 'Anish', true)
+    await setDone(todo_id, 'Carter', true) // 'unchanged': no second entry
+    const first = await claim(todo_id)
+    expect(first).toHaveLength(1)
+    expect(first[0].completer_id).toBe(t.members.Anish)
+    expect(await claim(todo_id)).toEqual([])
+  })
+
+  test('says nothing if the todo was unchecked before the notification went out', async () => {
+    const { todo_id } = await create('Oops tapped')
+    await setDone(todo_id, 'Lucas', true)
+    await setDone(todo_id, 'Lucas', false)
+    expect(await claim(todo_id)).toEqual([])
+  })
+
+  test('check, uncheck, check again: the new check-off is announced, exactly once', async () => {
+    const { todo_id } = await create('Flaky tap')
+    await setDone(todo_id, 'Lucas', true)
+    expect(await claim(todo_id)).toHaveLength(1)
+    await setDone(todo_id, 'Lucas', false)
+    await setDone(todo_id, 'Carter', true)
+    const again = await claim(todo_id)
+    expect(again).toEqual([{ todo_text: 'Flaky tap', completer_id: t.members.Carter }])
+    expect(await claim(todo_id)).toEqual([])
+  })
+
+  test('never announces old check-offs, unknown todos, or chore entries', async () => {
+    const { todo_id } = await create('Old news')
+    await setDone(todo_id, 'Lucas', true)
+    await t.db.query(`update activity set created_at = now() - interval '5 minutes' where todo_id = $1`, [todo_id])
+    expect(await claim(todo_id)).toEqual([])
+    expect(await claim(ZERO)).toEqual([])
+    const choreEntry = await t.one(`select chore_id from activity where kind = 'chore' limit 1`)
+    expect(await claim(choreEntry?.chore_id ?? ZERO)).toEqual([])
+  })
+
+  test('only the notify function (service_role) may call it, and failed attempts do not use up the claim', async () => {
+    const { todo_id } = await create('Locked down')
+    await setDone(todo_id, 'Lucas', true)
+    for (const role of ['anon', 'authenticated'] as const) {
+      await expect(t.as(role, () => t.rows('select * from claim_todo_notification($1)', [todo_id]))).rejects.toThrow()
+    }
+    expect(await claim(todo_id)).toHaveLength(1)
+  })
+})

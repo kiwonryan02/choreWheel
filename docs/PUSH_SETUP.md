@@ -14,7 +14,8 @@ How it works, briefly:
    Because of the claim, each completion notifies at most once, which is why it is safe for the function to be
    callable with the public key.
 
-The same function also sends the anonymous-bump nudge ("Friendly nudge: the trash is waiting on you.") to just the
+The same function also sends "Alex checked off 'Buy paper towels'" to everyone but Alex when a todo is checked off
+(migration `20261001000700_todo_notifications.sql`), and the anonymous-bump nudge ("Friendly nudge: the trash is waiting on you.") to just the
 person who was bumped. Milestone 5's migration (`20261001000400_bump.sql`) adds what it needs; after running it,
 redeploy `notify` (step 3's deploy command) so the function knows about bumps.
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildBumpMessage, buildCompletedMessage } from '../supabase/functions/notify/message.ts'
+import { buildBumpMessage, buildCompletedMessage, buildTodoDoneMessage } from '../supabase/functions/notify/message.ts'
 
 describe('buildBumpMessage', () => {
   test('matches the wording in the spec', () => {
@@ -44,5 +44,28 @@ describe('buildCompletedMessage', () => {
   test('leaves out "Next up" when the next person is the same person', () => {
     const msg = buildCompletedMessage({ choreSlug: 'trash', choreName: 'Trash', completerName: 'Sam', nextName: 'Sam' })
     expect(msg.body).toBe('Sam finished the trash.')
+  })
+})
+
+describe('buildTodoDoneMessage', () => {
+  test('says who checked off what', () => {
+    const msg = buildTodoDoneMessage({ todoId: 'abc', todoText: 'Buy paper towels', completerName: 'Alex' })
+    expect(msg.body).toBe("Alex checked off 'Buy paper towels'")
+    expect(msg.title).toBe('Todo done')
+    expect(msg.url).toBe('/')
+  })
+
+  test('shortens very long tasks so the notification stays readable', () => {
+    const msg = buildTodoDoneMessage({ todoId: 'abc', todoText: 'x'.repeat(200), completerName: 'Alex' })
+    expect(msg.body).toBe(`Alex checked off '${'x'.repeat(99)}…'`)
+    const exact = buildTodoDoneMessage({ todoId: 'abc', todoText: 'y'.repeat(100), completerName: 'Alex' })
+    expect(exact.body).toBe(`Alex checked off '${'y'.repeat(100)}'`)
+  })
+
+  test("gives each todo its own tag so quick successive check-offs don't replace each other", () => {
+    const a = buildTodoDoneMessage({ todoId: 'one', todoText: 'a', completerName: 'A' })
+    const b = buildTodoDoneMessage({ todoId: 'two', todoText: 'b', completerName: 'A' })
+    expect(a.tag).toBe('todo-one')
+    expect(a.tag).not.toBe(b.tag)
   })
 })

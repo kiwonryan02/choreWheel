@@ -117,6 +117,9 @@ Milestones 1–5 are built and working on iOS. Remaining work: the shared todo l
 - Existing chore activity history survives the `activity` migration and still renders correctly.
 
 ## Todo notifications (decision)
+> **Reversed by the owner after this was written:** todo check-offs now DO send a push to everyone except the person who
+> checked it off. See CLAUDE.md. The original decision follows.
+
 No push notifications for todos in v1, only the live in-app updates and the feed. Chore pushes stay as-is. If you want pushes later ("Alex checked off 'Buy paper towels'"), it's a small addition reusing the existing completion-push Edge Function; leave a clearly marked TODO there, don't build it now.
 
 ## Open items for Claude Code to confirm with me before building

@@ -5,7 +5,7 @@
 -- RPCs (the public key can only read). Checking a todo writes ONE feed entry in
 -- the same transaction; unchecking deletes it. Creating a todo is not logged.
 --
--- Todos send no push notifications in v1 (see the TODO in the notify function).
+-- Todo check-offs are announced by push; that is the next migration (todo_notifications).
 
 create table todos (
   id            uuid primary key default gen_random_uuid(),

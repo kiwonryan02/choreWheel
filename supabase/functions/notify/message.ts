@@ -37,6 +37,26 @@ export function buildBumpMessage({ choreSlug, choreName }: BumpInput): PushMessa
   }
 }
 
+export interface TodoDoneInput {
+  todoId: string
+  todoText: string
+  completerName: string
+}
+
+const TODO_TEXT_MAX = 100
+
+/** "Alex checked off 'Buy paper towels'" (long tasks are shortened for the notification). */
+export function buildTodoDoneMessage({ todoId, todoText, completerName }: TodoDoneInput): PushMessage {
+  const text =
+    todoText.length > TODO_TEXT_MAX ? `${todoText.slice(0, TODO_TEXT_MAX - 1).trimEnd()}…` : todoText
+  return {
+    title: 'Todo done',
+    body: `${completerName} checked off '${text}'`,
+    tag: `todo-${todoId}`,
+    url: '/',
+  }
+}
+
 /** "Sam finished the dishes. Next up: Alex." */
 export function buildCompletedMessage(input: CompletedInput): PushMessage {
   const { choreSlug, choreName, completerName, nextName } = input

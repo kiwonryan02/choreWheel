@@ -40,6 +40,7 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 5. Anonymous bump with rate limit — done and live (real-device test of the pings passed)
 6. Activity feed (generalized `activity` table) + bottom tab bar — code done; migration `…0500` still to be run
 7. Shared todo list — code done; migration `…0600` still to be run
+   (+ todo check-off pushes: migration `…0700`; the `notify` function must be redeployed after the three migrations)
 8. Polish, README with full setup steps — next
 
 (The repo's `docs/SPEC.md` is the updated spec: milestones 6-8 and the todo list. Its older lines that we deliberately
@@ -77,8 +78,10 @@ Remaining work is marked with `TODO(M#)` comments.
 - Todo writes are passcode-checked RPCs returning a status (never an exception): `create_todo`, `set_todo_done` (idempotent,
   row-locked: simultaneous check-offs write exactly one feed entry; **unchecking deletes the entry**), `delete_todo`
   (creator only, open only). Creating a todo is not logged. The public key can only read `todos`.
-- **No todo pushes in v1** (owner's decision). `notify` only claims `kind = 'chore'` rows and carries a marked TODO for adding
-  a `todo_done` request type later.
+- **Todo check-offs send a push to everyone except the person who checked it off** ("Alex checked off 'Buy paper towels'").
+  The spec said to leave this out of v1; the owner later asked for it. After `set_todo_done` returns `ok` for a check-off,
+  the app calls `notify` with `{ type: 'todo_done', todo_id }`; `claim_todo_notification` (service_role only) claims the
+  todo's newest unannounced feed entry once, and returns nothing if it was unchecked meanwhile. Unchecking sends nothing.
 - The feed (`useActivity`) reloads its page of 50 entries on any Realtime insert/delete (simple and always consistent);
   todo text comes from a PostgREST embed (`todos(text)`).
 - Tabs (Wheels / Todos / Activity) are all kept mounted and just hidden, so each keeps its state and live connection; the

@@ -1,10 +1,12 @@
 // notify: sends Web Push notifications.
 //
-// Two request types, both called by the app right after the matching RPC (todos send none, by design):
-//   { type: 'chore_completed', activity_id }  after complete_chore
-//   { type: 'bump',            bump_id }      after bump_chore
+// Three request types, each called by the app right after the matching RPC:
+//   { type: 'chore_completed', activity_id }  after complete_chore  -> everyone but the completer
+//   { type: 'todo_done',       todo_id }      after set_todo_done   -> everyone but whoever checked it off
+//   { type: 'bump',            bump_id }      after bump_chore      -> only the person who was bumped
 //
-// Each call CLAIMS its row (sets notified_at, only if still null and recent),
+// Each call CLAIMS its row (sets notified_at, only if still null and recent; the todo and bump
+// claims live in SQL: claim_todo_notification, claim_bump_notification),
 // so however often it is called, each completion or bump notifies at most
 // once. That is what makes it safe to leave this function callable with the
 // public key: it can't be used to spam anyone.
@@ -21,7 +23,12 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
-import { buildBumpMessage, buildCompletedMessage, type PushMessage } from './message.ts'
+import {
+  buildBumpMessage,
+  buildCompletedMessage,
+  buildTodoDoneMessage,
+  type PushMessage,
+} from './message.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -60,7 +67,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
-  let body: { type?: unknown; activity_id?: unknown; bump_id?: unknown }
+  let body: { type?: unknown; activity_id?: unknown; bump_id?: unknown; todo_id?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -70,6 +77,9 @@ Deno.serve(async (req) => {
   try {
     if (body.type === 'chore_completed' && isId(body.activity_id)) {
       return await choreCompleted(body.activity_id)
+    }
+    if (body.type === 'todo_done' && isId(body.todo_id)) {
+      return await todoDone(body.todo_id)
     }
     if (body.type === 'bump' && isId(body.bump_id)) {
       return await bumped(body.bump_id)
@@ -81,18 +91,13 @@ Deno.serve(async (req) => {
   return json({ error: 'unknown request' }, 400)
 })
 
-// TODO(todo push, deliberately NOT built in v1): todos have no push notifications, only
-// live in-app updates and the feed. If wanted later ("Alex checked off 'Buy paper towels'"),
-// add a 'todo_done' request type next to the two below that claims an activity row with
-// kind = 'todo' the same way, builds its message in message.ts, and sends to everyone except
-// the person who checked it off. The app would call it right after set_todo_done.
 async function choreCompleted(activityId: string): Promise<Response> {
   // Claim the completion. The null check makes this a once-only operation.
   const { data: activity, error: claimError } = await db
     .from('activity')
     .update({ notified_at: new Date().toISOString() })
     .eq('id', activityId)
-    .eq('kind', 'chore') // todo entries are never announced (see the TODO above)
+    .eq('kind', 'chore') // todo check-offs are announced by todoDone() below
     .is('notified_at', null)
     .gte('created_at', claimCutoff())
     .select('chore_id, member_id')
@@ -130,6 +135,36 @@ async function choreCompleted(activityId: string): Promise<Response> {
         completerName: nameOf(activity.member_id),
         nextName: nameOf(chore.current_member_id),
       }),
+    ),
+  )
+}
+
+async function todoDone(todoId: string): Promise<Response> {
+  // The database claims the check-off exactly once and says who did it and what it was.
+  // Nothing comes back if it was already announced, is old, or was unchecked meanwhile.
+  const { data, error: claimError } = await db.rpc('claim_todo_notification', { p_todo_id: todoId })
+  if (claimError) throw claimError
+  const claim = (data as { todo_text: string; completer_id: string }[] | null)?.[0]
+  if (!claim) return json({ sent: 0, reason: 'already announced, too old, unknown, or unchecked again' })
+
+  const { data: completer, error: peopleError } = await db
+    .from('members')
+    .select('name')
+    .eq('id', claim.completer_id)
+    .single()
+  if (peopleError) throw peopleError
+
+  // Everyone except the person who checked it off (and their other devices).
+  const { data: subscriptions, error: subsError } = await db
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .neq('member_id', claim.completer_id)
+  if (subsError) throw subsError
+
+  return json(
+    await sendAll(
+      subscriptions,
+      buildTodoDoneMessage({ todoId, todoText: claim.todo_text, completerName: completer.name }),
     ),
   )
 }

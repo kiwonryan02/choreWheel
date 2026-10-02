@@ -40,5 +40,9 @@ async function invokeNotify(body: Record<string, string>, what: string): Promise
 export const announceCompletion = (activityId: string) =>
   invokeNotify({ type: 'chore_completed', activity_id: activityId }, 'completion')
 
+/** Pings everyone (except whoever checked it off) that a todo was completed. */
+export const announceTodoDone = (todoId: string) =>
+  invokeNotify({ type: 'todo_done', todo_id: todoId }, 'todo')
+
 /** Pings only the person who was bumped. The request carries nothing about the sender. */
 export const announceBump = (bumpId: string) => invokeNotify({ type: 'bump', bump_id: bumpId }, 'bump')
