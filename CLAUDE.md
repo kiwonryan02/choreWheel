@@ -35,8 +35,8 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 2. Realtime state, atomic `complete_chore` RPC, completion sheet, rotation animation — done
    (the `activity` feed/subscription arrives in M6)
 3. Identity picker + passcode gate — done
-4. PWA install + Web Push for completions — code done; live deploy of `notify` + a real-device test still pending
-   (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
+4. PWA install + Web Push for completions — `notify` is deployed (project `hurozxaezghiiwmzxwah`) and smoke-tested;
+   a real-device push test is still pending until the app is on HTTPS (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
 5. Anonymous bump with rate limit — next
 6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
 
@@ -54,9 +54,15 @@ Remaining work is marked with `TODO(M#)` comments.
   and never record or log anything that identifies the bumper.
 - Secrets: `supabase/push-secrets.local` (gitignored, holds the VAPID private key) is pushed to Supabase with
   `supabase secrets set --env-file`. Never print it or paste it into chat.
-- The Edge Function itself is **not testable here**: there's no Deno, and the pane can't run service workers or push.
-  `tests/` covers the SQL, the message text, the service worker (against a fake scope) and the key decoding; the
-  `web-push` call under Deno is only proven by a real deploy.
+- The Edge Function can't run locally (no Deno), and the in-app browser can't run service workers or push.
+  `tests/` covers the SQL, the message text, the service worker (against a fake scope) and the key decoding. Against
+  the live project, `notify` was smoke-tested (CORS preflight, bad input, DB claim as service_role), and `web-push`
+  signing + encryption + HTTPS send under Deno was proven with a throwaway probe function (since deleted) that pushed to
+  a fake device and got the expected HTTP 400 back. What has **not** been seen: a push arriving on a real device, and
+  the service worker registering in a real browser.
+- Deploy: `supabase functions deploy notify --no-verify-jwt --use-api --project-ref <ref>` then
+  `supabase secrets set --env-file supabase/push-secrets.local --project-ref <ref>`. The CLI has no SQL command and
+  needs the DB password for db commands, so **migrations still go through the SQL editor**.
 
 ## Tests
 `bun test` runs everything in `tests/`. The SQL tests run the real migrations + seed in PGlite (in-process Postgres) with
