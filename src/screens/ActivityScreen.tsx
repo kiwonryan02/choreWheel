@@ -19,7 +19,7 @@ export default function ActivityScreen({ members, chores }: ActivityScreenProps)
       const chore = chores.find((c) => c.id === entry.choreId)
       return `did the ${chore ? chore.name.toLowerCase() : 'chore'}`
     }
-    return 'checked off a task'
+    return entry.todoText ? `checked off '${entry.todoText}'` : 'checked off a task'
   }
 
   if (!entries) {
@@ -63,7 +63,7 @@ export default function ActivityScreen({ members, chores }: ActivityScreenProps)
               style={{ backgroundColor: who?.color ?? '#94a3b8' }}
               aria-hidden="true"
             />
-            <p className="min-w-0 flex-1">
+            <p className="min-w-0 flex-1 break-words">
               <span className="font-semibold">{who?.name ?? 'Someone'}</span> {describe(entry)}
             </p>
             <span className="shrink-0 text-sm text-slate-500 dark:text-slate-400">

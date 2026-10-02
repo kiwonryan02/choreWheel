@@ -4,8 +4,10 @@ import Nudges from '../components/Nudges'
 import SettingsMenu from '../components/SettingsMenu'
 import TabBar, { type TabDef } from '../components/TabBar'
 import { useHousehold } from '../data/useHousehold'
+import { useTodos } from '../data/useTodos'
 import { readStored, STORAGE_KEYS, writeStored } from '../lib/storage'
 import ActivityScreen from './ActivityScreen'
+import TodosScreen from './TodosScreen'
 import WheelsScreen from './WheelsScreen'
 import WhoAreYou from './WhoAreYou'
 
@@ -16,7 +18,7 @@ interface HomeProps {
   onLock: () => void
 }
 
-type TabId = 'wheels' | 'activity'
+type TabId = 'wheels' | 'todos' | 'activity'
 
 const icon = (path: ReactNode) => (
   <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -33,6 +35,12 @@ const WHEELS_ICON = icon(
     <circle cx="4.5" cy="12" r="1.5" fill="currentColor" />
   </>,
 )
+const TODOS_ICON = icon(
+  <>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <path d="m3.5 6 1.2 1.2L6.8 5M3.5 12l1.2 1.2L6.8 11M3.5 18l1.2 1.2L6.8 17" />
+  </>,
+)
 const ACTIVITY_ICON = icon(
   <>
     <path d="M4 6h16M4 12h16M4 18h10" />
@@ -42,6 +50,7 @@ const ACTIVITY_ICON = icon(
 /** Everything after the passcode: identity, the header, the tabs, and the toast. */
 export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps) {
   const { members, chores, loaded, error, live, completeChore, retry } = useHousehold()
+  const todos = useTodos(passcode)
 
   const [memberId, setMemberId] = useState<string | null>(() => readStored(STORAGE_KEYS.memberId))
   const [switching, setSwitching] = useState(false)
@@ -101,6 +110,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
 
   const tabs: TabDef<TabId>[] = [
     { id: 'wheels', label: 'Wheels', icon: WHEELS_ICON },
+    { id: 'todos', label: 'Todos', icon: TODOS_ICON, badge: todos.open.length },
     { id: 'activity', label: 'Activity', icon: ACTIVITY_ICON },
   ]
 
@@ -133,6 +143,15 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
             passcode={passcode}
             completeChore={completeChore}
             refresh={retry}
+            showNotice={setNotice}
+            onPasscodeRejected={onPasscodeRejected}
+          />
+        </div>
+        <div hidden={tab !== 'todos'}>
+          <TodosScreen
+            members={members}
+            me={me}
+            todos={todos}
             showNotice={setNotice}
             onPasscodeRejected={onPasscodeRejected}
           />

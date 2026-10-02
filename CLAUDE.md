@@ -37,9 +37,13 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 3. Identity picker + passcode gate — done
 4. PWA install + Web Push for completions — `notify` is deployed (project `hurozxaezghiiwmzxwah`) and smoke-tested;
    a real-device push test is still pending until the app is on HTTPS (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
-5. Anonymous bump with rate limit — done and live (migration run, `notify` and app redeployed); a real-device push test
-   of both completion and bump pings is still pending
-6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
+5. Anonymous bump with rate limit — done and live (real-device test of the pings passed)
+6. Activity feed (generalized `activity` table) + bottom tab bar — code done; migration `…0500` still to be run
+7. Shared todo list — code done; migration `…0600` still to be run
+8. Polish, README with full setup steps — next
+
+(The repo's `docs/SPEC.md` is the updated spec: milestones 6-8 and the todo list. Its older lines that we deliberately
+differ from are listed in the note at its top.)
 
 Remaining work is marked with `TODO(M#)` comments.
 
@@ -64,6 +68,24 @@ Remaining work is marked with `TODO(M#)` comments.
 - The completer's devices are skipped. Subscriptions are filed per member and re-filed when someone switches person.
 - The bump notification reuses the same pattern: `notify` claims a `bumps` row once (`bumps.notified_at`), sends only to
   the target member, and its message names no one.
+
+## Feed, tabs and todos (M6-M7)
+- `activity(id, kind, member_id, chore_id null, todo_id null, created_at, notified_at)`: `kind` is `'chore'` or `'todo'`;
+  a CHECK enforces exactly one subject matching the kind. `completed_at` was renamed to `created_at` (existing history is
+  backfilled as `kind = 'chore'`, tested). `complete_chore` was replaced in the same migration because it inserts into
+  `activity`. Anything new that reads or writes `activity` must use `created_at` and set `kind`.
+- Todo writes are passcode-checked RPCs returning a status (never an exception): `create_todo`, `set_todo_done` (idempotent,
+  row-locked: simultaneous check-offs write exactly one feed entry; **unchecking deletes the entry**), `delete_todo`
+  (creator only, open only). Creating a todo is not logged. The public key can only read `todos`.
+- **No todo pushes in v1** (owner's decision). `notify` only claims `kind = 'chore'` rows and carries a marked TODO for adding
+  a `todo_done` request type later.
+- The feed (`useActivity`) reloads its page of 50 entries on any Realtime insert/delete (simple and always consistent);
+  todo text comes from a PostgREST embed (`todos(text)`).
+- Tabs (Wheels / Todos / Activity) are all kept mounted and just hidden, so each keeps its state and live connection; the
+  page scroll resets on a tab change. The Todos tab badge is the open-todo count.
+- The app now checks the saved passcode on load (the nudge poll), so a made-up passcode in localStorage is rejected at once
+  (and counts as a wrong guess). To eyeball the UI without the real passcode, load the app in a same-origin iframe with the
+  `get_nudges` RPC stubbed; don't add test-only code to the app.
 
 ## Bump design (M5)
 - `bump_chore(passcode, chore_id, expected_member_id)` takes **no sender**, and `bumps` has **no sender column**.

@@ -24,5 +24,19 @@ export interface ActivityEntry {
   memberId: string
   choreId: string | null
   todoId: string | null
+  /** For todo entries: the task's text. */
+  todoText: string | null
   createdAt: Date
+}
+
+export interface Todo {
+  id: string
+  text: string
+  createdBy: string
+  createdAt: Date
+  done: boolean
+  completedBy: string | null
+  completedAt: Date | null
+  /** Shown instantly while the server confirms it (optimistic add). */
+  pending?: boolean
 }

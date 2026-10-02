@@ -4,6 +4,13 @@ import type { ActivityEntry } from '../types'
 
 const FEED_SIZE = 50
 
+// activity.todo_id -> todos.id is many-to-one, so PostgREST returns one object (or
+// null); supabase-js's untyped client guesses a list. Accept either.
+function embeddedText(embedded: unknown): string | null {
+  const row = Array.isArray(embedded) ? embedded[0] : embedded
+  return (row as { text?: string } | null | undefined)?.text ?? null
+}
+
 /**
  * The activity feed: the latest completions, newest first. Bumps never appear
  * here (the table that holds them is private).
@@ -19,7 +26,7 @@ export function useActivity() {
   const refresh = useCallback(async () => {
     const { data, error: queryError } = await supabase
       .from('activity')
-      .select('id, kind, member_id, chore_id, todo_id, created_at')
+      .select('id, kind, member_id, chore_id, todo_id, created_at, todos(text)')
       .order('created_at', { ascending: false })
       .limit(FEED_SIZE)
     if (queryError || !data) {
@@ -33,6 +40,7 @@ export function useActivity() {
         memberId: row.member_id,
         choreId: row.chore_id,
         todoId: row.todo_id,
+        todoText: embeddedText(row.todos),
         createdAt: new Date(row.created_at),
       })),
     )
