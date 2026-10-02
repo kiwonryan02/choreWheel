@@ -37,7 +37,8 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 3. Identity picker + passcode gate — done
 4. PWA install + Web Push for completions — `notify` is deployed (project `hurozxaezghiiwmzxwah`) and smoke-tested;
    a real-device push test is still pending until the app is on HTTPS (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
-5. Anonymous bump with rate limit — code done; needs the bump migration run, `notify` redeployed, and the app redeployed
+5. Anonymous bump with rate limit — done and live (migration run, `notify` and app redeployed); a real-device push test
+   of both completion and bump pings is still pending
 6. Activity feed, polish, Vercel deploy, README (also decide the spec's "unguessable URL" part of access)
 
 Remaining work is marked with `TODO(M#)` comments.
