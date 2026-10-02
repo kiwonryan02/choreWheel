@@ -11,3 +11,12 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* No double-tap-to-zoom delay on tappable things (iOS). Pinch-zoom still works. */
+button,
+a,
+input,
+select,
+label {
+  touch-action: manipulation;
+}

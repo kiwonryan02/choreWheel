@@ -9,7 +9,9 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 ## Commands
 - `bun run dev` — dev server (http://localhost:5173)
 - `bun run build` — typecheck + production build
-- `bun run lint` — oxlint
+- `bun run lint` — oxlint (the `react/set-state-in-effect` rule is off on purpose: our data hooks load on mount and
+  call setState after an `await`, which that rule can't distinguish from a synchronous call)
+- `bun test` — SQL (PGlite), service worker, message tests
 
 ## Decisions that differ from or refine the spec
 - **The app's display name is "Lack App"** (header, passcode screen, page title, PWA manifest `name` and `short_name`, iOS
@@ -43,7 +45,7 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 6. Activity feed (generalized `activity` table) + bottom tab bar — done and live
 7. Shared todo list (+ pushes when a todo is checked off) — done and live (migrations `…0500`-`…0700` run, `notify` and
    the app redeployed); a real-device test of the todo pings is still pending
-8. Polish, README with full setup steps — next
+8. Polish and README with full setup steps — done (README covers setup from scratch; lint warnings resolved; iOS tap delay removed)
 
 (The repo's `docs/SPEC.md` is the updated spec: milestones 6-8 and the todo list. Its older lines that we deliberately
 differ from are listed in the note at its top.)
