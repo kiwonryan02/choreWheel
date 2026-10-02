@@ -38,9 +38,9 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 4. PWA install + Web Push for completions — `notify` is deployed (project `hurozxaezghiiwmzxwah`) and smoke-tested;
    a real-device push test is still pending until the app is on HTTPS (see [docs/PUSH_SETUP.md](docs/PUSH_SETUP.md))
 5. Anonymous bump with rate limit — done and live (real-device test of the pings passed)
-6. Activity feed (generalized `activity` table) + bottom tab bar — code done; migration `…0500` still to be run
-7. Shared todo list — code done; migration `…0600` still to be run
-   (+ todo check-off pushes: migration `…0700`; the `notify` function must be redeployed after the three migrations)
+6. Activity feed (generalized `activity` table) + bottom tab bar — done and live
+7. Shared todo list (+ pushes when a todo is checked off) — done and live (migrations `…0500`-`…0700` run, `notify` and
+   the app redeployed); a real-device test of the todo pings is still pending
 8. Polish, README with full setup steps — next
 
 (The repo's `docs/SPEC.md` is the updated spec: milestones 6-8 and the todo list. Its older lines that we deliberately
