@@ -18,7 +18,7 @@ interface HomeProps {
   onLock: () => void
 }
 
-type TabId = 'wheels' | 'todos' | 'activity'
+type TabId = 'chores' | 'todos' | 'activity'
 
 const icon = (path: ReactNode) => (
   <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -56,7 +56,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
   const [switching, setSwitching] = useState(false)
   const me = members.find((m) => m.id === memberId)
 
-  const [tab, setTab] = useState<TabId>('wheels')
+  const [tab, setTab] = useState<TabId>('chores')
   const changeTab = (next: TabId) => {
     setTab(next)
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -109,7 +109,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
   }
 
   const tabs: TabDef<TabId>[] = [
-    { id: 'wheels', label: 'Wheels', icon: WHEELS_ICON },
+    { id: 'chores', label: 'Chores', icon: WHEELS_ICON },
     { id: 'todos', label: 'Todos', icon: TODOS_ICON, badge: todos.open.length },
     { id: 'activity', label: 'Activity', icon: ACTIVITY_ICON },
   ]
@@ -121,7 +121,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
     <div className="mx-auto max-w-md snap-start pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between bg-slate-50/90 px-6 backdrop-blur dark:bg-slate-950/90">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold tracking-tight">LACK Chore Wheel</h1>
+          <h1 className="text-lg font-bold tracking-tight">Lack App</h1>
           <span
             title={live ? 'Live updates on' : 'Reconnecting…'}
             className={`size-2 rounded-full ${live ? 'bg-emerald-500' : 'bg-amber-500'}`}
@@ -136,7 +136,7 @@ export default function Home({ passcode, onPasscodeRejected, onLock }: HomeProps
 
       {/* Every tab stays mounted (just hidden), so each keeps its state and live connection. */}
       <main>
-        <div hidden={tab !== 'wheels'}>
+        <div hidden={tab !== 'chores'}>
           <WheelsScreen
             chores={chores}
             me={me}

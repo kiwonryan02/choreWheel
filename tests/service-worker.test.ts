@@ -55,7 +55,7 @@ describe('push', () => {
     await sw.fire('push', {})
     await sw.fire('push', { data: { json: () => { throw new Error('bad json') }, text: () => 'plain text body' } })
     expect(sw.shown).toHaveLength(2)
-    expect(sw.shown[0].title).toBe('LACK Chore Wheel')
+    expect(sw.shown[0].title).toBe('Lack App')
     expect(sw.shown[1].options.body).toBe('plain text body')
   })
 

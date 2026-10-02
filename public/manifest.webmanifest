@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "LACK Chore Wheel",
-  "short_name": "LACK Chores",
+  "name": "Lack App",
+  "short_name": "Lack App",
   "description": "Shared dishes and trash chore wheels for the household.",
   "start_url": "/",
   "scope": "/",

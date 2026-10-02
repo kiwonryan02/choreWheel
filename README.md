@@ -1,4 +1,4 @@
-# LACK Chore Wheel
+# Lack App
 
 A mobile-first web app for four roommates with two chore wheels (Dishes, Trash). Whoever is on top owns the
 chore. They mark it done and the wheel rotates to the next person, live on everyone's phone.

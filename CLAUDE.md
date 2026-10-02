@@ -12,7 +12,9 @@ Vite + React + TypeScript, **bun**, Tailwind v4, Supabase (Postgres + Realtime +
 - `bun run lint` — oxlint
 
 ## Decisions that differ from or refine the spec
-- **The app's display name is "LACK Chore Wheel"** (header, passcode screen, page title). Use it for the PWA manifest
+- **The app's display name is "Lack App"** (header, passcode screen, page title, PWA manifest `name` and `short_name`, iOS
+  home-screen title, the service worker's fallback notification title). It was "LACK Chore Wheel" until the owner renamed it.
+  The first tab is called **Chores** (it shows the wheels). Use the name for the PWA manifest
   `name` in M4 and for push notification titles.
 - **The chore checklist is shown on each wheel's card**, always visible, as a plain numbered list. The completion sheet
   is only a confirm ("Mark dishes done? The wheel will move on to X"). The spec had the checklist in the sheet with tickable boxes.
@@ -61,8 +63,8 @@ Remaining work is marked with `TODO(M#)` comments.
 
 ## PWA and push design (M4)
 - `public/sw.js` handles push + notification clicks only and **caches nothing** (so there is never a stale build).
-  `public/manifest.webmanifest`: `name` "LACK Chore Wheel", `short_name` "LACK Chores" (home-screen labels truncate
-  around 11 characters). Icons are rendered from `public/icons/icon.svg`.
+  `public/manifest.webmanifest`: `name` and `short_name` both "Lack App" (home-screen labels truncate
+  around 11 characters, and this fits). Icons are rendered from `public/icons/icon.svg`.
 - Notifications are **triggered by the app, not a database trigger**: after `complete_chore` returns `activity_id`, the app
   calls the `notify` Edge Function, which claims the row via `activity.notified_at` so it notifies at most once. No pg_net
   or webhook secret is needed. Trade-off: if the completer's app dies between the two calls, that one ping is lost.
@@ -84,7 +86,7 @@ Remaining work is marked with `TODO(M#)` comments.
   todo's newest unannounced feed entry once, and returns nothing if it was unchecked meanwhile. Unchecking sends nothing.
 - The feed (`useActivity`) reloads its page of 50 entries on any Realtime insert/delete (simple and always consistent);
   todo text comes from a PostgREST embed (`todos(text)`).
-- Tabs (Wheels / Todos / Activity) are all kept mounted and just hidden, so each keeps its state and live connection; the
+- Tabs (Chores / Todos / Activity) are all kept mounted and just hidden, so each keeps its state and live connection; the
   page scroll resets on a tab change. The Todos tab badge is the open-todo count.
 - The app now checks the saved passcode on load (the nudge poll), so a made-up passcode in localStorage is rejected at once
   (and counts as a wrong guess). To eyeball the UI without the real passcode, load the app in a same-origin iframe with the

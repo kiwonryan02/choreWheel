@@ -1,7 +1,7 @@
 > **Where this repo deliberately differs from the text below** (owner decisions made while building; see CLAUDE.md):
 > each wheel has its own rotation order (not one shared order); the bump rate limit is **12 hours** (not 6);
 > the chore checklist is shown on each wheel's card and the completion sheet is only a confirm; the app is
-> named "LACK Chore Wheel". Everything else is as written.
+> named "Lack App" (tabs: Chores, Todos, Activity). Everything else is as written.
 
 # Roommate Chore Wheel — Build Spec
 

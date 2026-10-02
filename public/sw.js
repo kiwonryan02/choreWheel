@@ -1,4 +1,4 @@
-// LACK Chore Wheel service worker. It exists for installability and Web Push
+// Lack App service worker. It exists for installability and Web Push
 // only. It deliberately caches nothing, so the app is always the latest build
 // and state is always live.
 
@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'LACK Chore Wheel', {
+    self.registration.showNotification(payload.title || 'Lack App', {
       body: payload.body || '',
       tag: payload.tag,
       renotify: Boolean(payload.tag), // a newer ping for the same chore still alerts
